@@ -6,15 +6,20 @@
 //
 
 import SwiftUI
-
 @main
+
 struct AstroStatsApp: App {
+    @StateObject private var personStore = PersonStore()
     let persistenceController = PersistenceController.shared
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
+            // Single root NavigationView
+            NavigationView {
+                PeopleListView()
+                    .environmentObject(personStore)
+                    .environment(\.managedObjectContext, persistenceController.container.viewContext)
+            }
         }
     }
 }

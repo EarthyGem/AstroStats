@@ -1,3 +1,11 @@
+//
+//  LocationSearchView.swift
+//  AstroStats
+//
+//  Created by Errick Williams on 5/1/25.
+//
+
+
 import SwiftUI
 import MapKit
 import Combine

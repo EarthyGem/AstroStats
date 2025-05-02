@@ -1,5 +1,14 @@
+//
+//  AstrologyChartView.swift
+//  AstroStats
+//
+//  Created by Errick Williams on 5/1/25.
+//
+
+
 import SwiftUI
 import UIKit
+import SwiftEphemeris
 
 struct AstrologyChartView: View {
     let person: Person
@@ -165,10 +174,18 @@ struct BirthChartUIViewWrapper: UIViewRepresentable {
     }
     
     private func createBirthChartView() -> UIView {
-        // Create a placeholder birth chart view
-        // In a real app, you would use your actual BirthChartView class from your code
-        let birthChartView = PlaceholderBirthChartView(frame: .zero)
-        birthChartView.person = person
+        let chart = Chart(
+            date: person.birthDate,
+            latitude: person.latitude,
+            longitude: person.longitude,
+            houseSystem: .placidus,
+            name: person.name,
+            birthPlace: person.birthPlace
+        )
+        
+        let frame = CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.width)
+        let birthChartView = ChartView(frame: frame, chart: chart)
+        birthChartView.backgroundColor = .white
         return birthChartView
     }
 }
@@ -176,7 +193,7 @@ struct BirthChartUIViewWrapper: UIViewRepresentable {
 // Placeholder Birth Chart View - Replace with your actual implementation
 class PlaceholderBirthChartView: UIView {
     var person: Person?
-    
+    var chartCake: ChartCake?
     override func draw(_ rect: CGRect) {
         super.draw(rect)
         
@@ -228,7 +245,7 @@ class PlaceholderBirthChartView: UIView {
         // Place planet symbols (simplified)
         if let person = person, let planetScores = person.planetScores {
             let planets = ["☉", "☽", "☿", "♀", "♂", "♃", "♄", "♅", "♆", "♇"]
-            let planetNames = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto"]
+            let planetNames = chartCake?.natal.rickysBodies.compactMap{$0.body}
             
             let planetAttributes: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 18, weight: .bold),
@@ -236,8 +253,8 @@ class PlaceholderBirthChartView: UIView {
             ]
             
             // Distribute planets around the chart
-            for i in 0..<min(planets.count, planetNames.count) {
-                if let score = planetScores[planetNames[i]] {
+            for i in 0..<min(planets.count, planetNames?.count ?? 0) {
+                if let score = planetScores[planetNames![i]] {
                     // Position planets at different distances from center based on score
                     let angle = CGFloat(i) * (2.0 * .pi / 10.0) - .pi / 3
                     let distance = radius * (0.3 + 0.3 * CGFloat(score / 20.0))
@@ -277,10 +294,10 @@ struct PlanetScoresView: View {
                     ForEach(sortedPlanets, id: \.key) { planetName, score in
                         HStack {
                             HStack(spacing: 4) {
-                                PlanetSymbolView(planet: planetName)
+                                PlanetSymbolView(planet: planetName.keyName)
                                     .frame(width: 28, height: 28)
                                 
-                                Text(planetName)
+                                Text(planetName.keyName)
                                     .font(.system(size: 16, weight: .medium))
                                     .frame(width: 80, alignment: .leading)
                             }
@@ -293,7 +310,7 @@ struct PlanetScoresView: View {
                                     .cornerRadius(6)
                                 
                                 Rectangle()
-                                    .fill(planetColor(planetName))
+                                    .fill(planetColor(planetName.keyName))
                                     .frame(width: max(calculateBarWidth(score, totalScore), 20), height: 22)
                                     .cornerRadius(6)
                                 
@@ -411,10 +428,9 @@ struct SignScoresView: View {
                     let totalScore = signScores.values.reduce(0, +)
                     
                     // Use zodiac order
-                    let zodiacOrder = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", 
-                                       "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
+                    let zodiacOrder = Zodiac.allCases
                     
-                    let orderedSigns = zodiacOrder.compactMap { sign -> (String, Double)? in
+                    let orderedSigns = zodiacOrder.compactMap { sign -> (Zodiac, Double)? in
                         if let score = signScores[sign] {
                             return (sign, score)
                         }
@@ -428,7 +444,7 @@ struct SignScoresView: View {
                                     .font(.system(size: 18))
                                     .frame(width: 28, height: 28)
                                 
-                                Text(signName)
+                                Text(signName.keyName)
                                     .font(.system(size: 16, weight: .medium))
                                     .frame(width: 80, alignment: .leading)
                             }
@@ -441,7 +457,7 @@ struct SignScoresView: View {
                                     .cornerRadius(6)
                                 
                                 Rectangle()
-                                    .fill(signColor(signName))
+                                    .fill(signColor(signName.keyName))
                                     .frame(width: max(calculateBarWidth(score, totalScore), 20), height: 22)
                                     .cornerRadius(6)
                                 
@@ -487,20 +503,20 @@ struct SignScoresView: View {
         return CGFloat(score / totalScore) * maxWidth
     }
     
-    private func zodiacSymbol(for sign: String) -> String {
+    private func zodiacSymbol(for sign: Zodiac) -> String {
         switch sign {
-        case "Aries": return "♈"
-        case "Taurus": return "♉"
-        case "Gemini": return "♊"
-        case "Cancer": return "♋"
-        case "Leo": return "♌"
-        case "Virgo": return "♍"
-        case "Libra": return "♎"
-        case "Scorpio": return "♏"
-        case "Sagittarius": return "♐"
-        case "Capricorn": return "♑"
-        case "Aquarius": return "♒"
-        case "Pisces": return "♓"
+        case Zodiac.aries: return "♈"
+        case Zodiac.taurus: return "♉"
+        case Zodiac.gemini: return "♊"
+        case Zodiac.cancer: return "♋"
+        case Zodiac.leo: return "♌"
+        case Zodiac.virgo: return "♍"
+        case Zodiac.libra: return "♎"
+        case Zodiac.scorpio: return "♏"
+        case Zodiac.sagittarius: return "♐"
+        case Zodiac.capricorn: return "♑"
+        case Zodiac.aquarius: return "♒"
+        case Zodiac.pisces: return "♓"
         default: return "?"
         }
     }
@@ -645,7 +661,6 @@ struct HouseInformationView: View {
     }
 }
 
-// Harmony Discord View
 struct HarmonyDiscordView: View {
     let person: Person
     
@@ -656,30 +671,26 @@ struct HarmonyDiscordView: View {
                     .font(.headline)
                     .padding(.top)
                 
-                if let harmonyDiscordScores = person.harmonyDiscordScores {
-                    let sortedScores = harmonyDiscordScores.sorted { $0.value.difference > $1.value.difference }
+                if let harmonyDiscordScores = person.signHarmonyDiscordScores {
+                    let sortedScores = harmonyDiscordScores.sorted { $0.value.net > $1.value.net }
                     
-                    ForEach(sortedScores, id: \.key) { planetName, scores in
-                        VStack(spacing: 4) {
+                    ForEach(Array(sortedScores.enumerated()), id: \.offset) { index, element in
+                        let sign = element.key
+                        let scores = element.value
+                        
+                        VStack(alignment: .leading) {
                             HStack {
-                                HStack(spacing: 8) {
-                                    PlanetSymbolView(planet: planetName)
-                                        .frame(width: 28, height: 28)
-                                    
-                                    Text(planetName)
-                                        .font(.system(size: 16, weight: .medium))
-                                }
-                                .frame(width: 120, alignment: .leading)
-                                
+                                Text(sign.keyName).fontWeight(.bold)
                                 Spacer()
-                                
-                                Text("Net: \(String(format: "%.1f", scores.difference))")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(scores.difference >= 0 ? .green : .red)
+                                Text("Harmony: \(scores.harmony, specifier: "%.1f")")
+                                Text("Discord: \(scores.discord, specifier: "%.1f")")
                             }
                             
+                            Text("Net: \(scores.net, specifier: "%.1f")")
+                                .foregroundColor(scores.net >= 0 ? .green : .red)
+                            
+                            // 🎯 Bar chart
                             HStack(spacing: 0) {
-                                // Harmony bar
                                 ZStack(alignment: .trailing) {
                                     Rectangle()
                                         .fill(Color.green.opacity(0.7))
@@ -692,7 +703,6 @@ struct HarmonyDiscordView: View {
                                         .padding(.trailing, 4)
                                 }
                                 
-                                // Discord bar
                                 ZStack(alignment: .leading) {
                                     Rectangle()
                                         .fill(Color.red.opacity(0.7))
@@ -712,6 +722,7 @@ struct HarmonyDiscordView: View {
                         .padding(.horizontal)
                     }
                     
+                    // ✅ Interpretation block
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Interpretation")
                             .font(.headline)
@@ -723,11 +734,11 @@ struct HarmonyDiscordView: View {
                         
                         if let mostHarmonious = sortedScores.first?.key,
                            let mostDiscordant = sortedScores.last?.key {
-                            Text("Most Harmonious: \(mostHarmonious)")
+                            Text("Most Harmonious: \(mostHarmonious.keyName)")
                                 .font(.subheadline)
                                 .padding(.vertical, 4)
                             
-                            Text("Most Challenging: \(mostDiscordant)")
+                            Text("Most Challenging: \(mostDiscordant.keyName)")
                                 .font(.subheadline)
                         }
                     }
@@ -735,7 +746,6 @@ struct HarmonyDiscordView: View {
                     .background(Color(.systemGray6))
                     .cornerRadius(10)
                     .padding()
-                    
                 } else {
                     Text("Harmony/discord data not available")
                         .foregroundColor(.secondary)

@@ -1,5 +1,13 @@
 //
 //  BirthChartView.swift
+//  AstroStats
+//
+//  Created by Errick Williams on 5/1/25.
+//
+
+
+//
+//  BirthChartView.swift
 //  AstroLogic2
 //
 
@@ -7,7 +15,7 @@ import UIKit
 import SwiftEphemeris
 import OrderedCollections
 
-    class BirthChartView: UIView {
+    class ChartView: UIView {
         var planetPositions: [CelestialObject: CGFloat] = [:]
         var chart: Chart?
         let baseFontSize: CGFloat = 8
@@ -64,7 +72,7 @@ import OrderedCollections
         let rect = CGRect(x: 0, y: 0, width: screenWidth, height: screenWidth)
 
         // Create a static version of the birth chart view
-        let staticBirthChartView = BirthChartView(frame: rect, chart: chartCake.natal, isStatic: true)
+        let staticBirthChartView = ChartView(frame: rect, chart: chart!, isStatic: true)
         staticBirthChartView.backgroundColor = .white
 
         // Ensure the view is laid out and rendered

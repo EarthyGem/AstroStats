@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		39E4F3502DC48F0900767F5B /* SwiftEphemeris in Frameworks */ = {isa = PBXBuildFile; productRef = 39E4F34F2DC48F0900767F5B /* SwiftEphemeris */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		39E4F32A2DC42F5C00767F5B /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				39E4F3502DC48F0900767F5B /* SwiftEphemeris in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +117,7 @@
 			);
 			name = AstroStats;
 			packageProductDependencies = (
+				39E4F34F2DC48F0900767F5B /* SwiftEphemeris */,
 			);
 			productName = AstroStats;
 			productReference = 39E4F3142DC42F5A00767F5B /* AstroStats.app */;
@@ -195,6 +201,9 @@
 			);
 			mainGroup = 39E4F30B2DC42F5A00767F5B;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				39E4F34E2DC48F0900767F5B /* XCRemoteSwiftPackageReference "SwiftEphemeris" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 39E4F3152DC42F5A00767F5B /* Products */;
 			projectDirPath = "";
@@ -558,6 +567,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		39E4F34E2DC48F0900767F5B /* XCRemoteSwiftPackageReference "SwiftEphemeris" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/heylila/SwiftEphemeris.git";
+			requirement = {
+				branch = my_new;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		39E4F34F2DC48F0900767F5B /* SwiftEphemeris */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 39E4F34E2DC48F0900767F5B /* XCRemoteSwiftPackageReference "SwiftEphemeris" */;
+			productName = SwiftEphemeris;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 39E4F30C2DC42F5A00767F5B /* Project object */;
 }

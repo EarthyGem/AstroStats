@@ -1,3 +1,11 @@
+//
+//  PeopleListView.swift
+//  AstroStats
+//
+//  Created by Errick Williams on 5/1/25.
+//
+
+
 import SwiftUI
 
 struct PeopleListView: View {
@@ -100,15 +108,15 @@ struct PlanetIcon: View {
     private var planetColor: Color {
         switch planet.lowercased() {
         case "sun": return .orange
-        case "moon": return .blue
+        case "moon": return .green
         case "mercury": return .purple
-        case "venus": return .pink
+        case "venus": return .yellow
         case "mars": return .red
-        case "jupiter": return .yellow
-        case "saturn": return .gray
-        case "uranus": return .green
+        case "jupiter": return .indigo
+        case "saturn": return .blue
+        case "uranus": return .white
         case "neptune": return .teal
-        case "pluto": return .indigo
+        case "pluto": return .green
         default: return .gray
         }
     }
@@ -130,9 +138,4 @@ struct PlanetIcon: View {
     }
 }
 
-struct PeopleListView_Previews: PreviewProvider {
-    static var previews: some View {
-        PeopleListView()
-            .environmentObject(PersonStore())
-    }
-}
+

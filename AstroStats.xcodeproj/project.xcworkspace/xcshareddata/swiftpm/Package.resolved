@@ -1,0 +1,24 @@
+{
+  "originHash" : "4a87be8827a58f06e6ea8008b1204f376bbaf7351b06d32f7bfa3ddbe154e1da",
+  "pins" : [
+    {
+      "identity" : "swift-collections",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-collections.git",
+      "state" : {
+        "revision" : "671108c96644956dddcd89dd59c203dcdb36cec7",
+        "version" : "1.1.4"
+      }
+    },
+    {
+      "identity" : "swiftephemeris",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/heylila/SwiftEphemeris.git",
+      "state" : {
+        "branch" : "my_new",
+        "revision" : "846c2d785c768066a5e041894343a4b68b26b716"
+      }
+    }
+  ],
+  "version" : 3
+}
