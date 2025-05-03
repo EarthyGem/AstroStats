@@ -1,7 +1,8 @@
 import MapKit
+import FirebaseAuth
 import CoreLocation
 import SwiftEphemeris
-
+import FirebaseFirestore
 struct BirthDataEntryView: View {
     @Environment(\.presentationMode) var presentationMode
     @EnvironmentObject var personStore: PersonStore
@@ -12,7 +13,8 @@ struct BirthDataEntryView: View {
     @State private var showingPlacePicker = false
     @State private var latitude: Double = 0.0
     @State private var longitude: Double = 0.0
-    
+    @State private var resolvedTimeZone: TimeZone? = nil
+
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showingError = false
@@ -189,7 +191,20 @@ struct BirthDataEntryView: View {
                     switch result {
                     case .success(let timeZone):
                         let adjustedDate = self.applyTimeZone(self.birthDate, with: timeZone)
-                        self.addPerson()
+                        self.resolvedTimeZone = timeZone
+                  
+
+                        print("🟢 BIRTH DATA DEBUG:")
+                        print("Name: \(self.name)")
+                        print("Birthplace: \(self.birthPlace)")
+                        print("Latitude: \(self.latitude), Longitude: \(self.longitude)")
+                        print("Input BirthDate (local): \(self.birthDate)")
+                        print("TimeZone Used: \(timeZone.identifier)")
+                        print("Offset: \(timeZone.secondsFromGMT(for: self.birthDate)) seconds")
+                        print("Adjusted Date (UTC): \(adjustedDate)")
+                        print("✅ Final UTC Date:", adjustedDate)
+                        self.addPerson(using: adjustedDate, timeZoneID: timeZone.identifier)
+
 
                     case .failure(let error):
                         self.errorMessage = error.localizedDescription
@@ -197,6 +212,7 @@ struct BirthDataEntryView: View {
                         self.isLoading = false
                     }
                 }
+            
             }
             return
         }
@@ -205,66 +221,120 @@ struct BirthDataEntryView: View {
     }
 
     private func applyTimeZone(_ date: Date, with timeZone: TimeZone) -> Date {
-        let calendar = Calendar(identifier: .gregorian)
-        let localComponents = calendar.dateComponents(in: TimeZone.current, from: date)
+        // The date was entered assuming it's in the timeZone — but Swift thinks it's in the device’s local time zone.
+        // So we reinterpret it as if it was *entered in timeZone*, not currentTimeZone.
+        
+        let local = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
         
         var components = DateComponents()
-        components.year = localComponents.year
-        components.month = localComponents.month
-        components.day = localComponents.day
-        components.hour = localComponents.hour
-        components.minute = localComponents.minute
-        components.second = localComponents.second
+        components.year = local.year
+        components.month = local.month
+        components.day = local.day
+        components.hour = local.hour
+        components.minute = local.minute
+        components.second = local.second
         components.timeZone = timeZone
-        
-        return calendar.date(from: components) ?? date
+
+        // Construct the correctly-localized Date in UTC
+        return Calendar(identifier: .gregorian).date(from: components)!
     }
 
     private func geocodeLocation() {
         let geocoder = CLGeocoder()
         geocoder.geocodeAddressString(birthPlace) { placemarks, error in
             DispatchQueue.main.async {
-                isLoading = false
-                
                 if let error = error {
                     errorMessage = "Could not find the location: \(error.localizedDescription)"
                     showingError = true
+                    isLoading = false
                     return
                 }
-                
+
                 guard let placemark = placemarks?.first,
                       let location = placemark.location else {
                     errorMessage = "Invalid location"
                     showingError = true
+                    isLoading = false
                     return
                 }
-                
+
                 latitude = location.coordinate.latitude
                 longitude = location.coordinate.longitude
-                
-                addPerson()
+
+                resolveTimeZone(for: location, birthDate: birthDate, placeName: birthPlace) { result in
+                    DispatchQueue.main.async {
+                        switch result {
+                        case .success(let timeZone):
+                            let adjustedDate = self.applyTimeZone(self.birthDate, with: timeZone)
+                            self.resolvedTimeZone = timeZone
+                    
+                            self.addPerson(using: adjustedDate, timeZoneID: timeZone.identifier)
+
+
+                            print("✅ Final UTC Date:", adjustedDate)
+                        case .failure(let error):
+                            self.errorMessage = error.localizedDescription
+                            self.showingError = true
+                            self.isLoading = false
+                        }
+                    }
+                }
             }
         }
     }
-    
-    private func addPerson() {
+    private func addPerson(using adjustedDate: Date, timeZoneID: String) {
         let newPerson = Person(
             name: name,
-            birthDate: birthDate,
+            birthDate: adjustedDate,
             birthPlace: birthPlace,
             latitude: latitude,
-            longitude: longitude
+            longitude: longitude,
+            timeZoneID: timeZoneID
         )
-        
-        // Calculate astrological data for the person
-        personStore.calculateAstrologicalData(for: newPerson) { updatedPerson in
+
+        // Reinterpret the adjusted UTC date into local time using timeZoneID
+        let timeZone = TimeZone(identifier: timeZoneID) ?? TimeZone(abbreviation: "UTC")!
+        let localComponents = Calendar(identifier: .gregorian).dateComponents(in: timeZone, from: adjustedDate)
+        var adjustedComponents = DateComponents()
+        adjustedComponents.calendar = Calendar(identifier: .gregorian)
+        adjustedComponents.timeZone = timeZone
+        adjustedComponents.year = localComponents.year
+        adjustedComponents.month = localComponents.month
+        adjustedComponents.day = localComponents.day
+        adjustedComponents.hour = localComponents.hour
+        adjustedComponents.minute = localComponents.minute
+        adjustedComponents.second = localComponents.second
+
+        guard let interpretedLocalDate = adjustedComponents.date else {
+            print("⚠️ Failed to reconstruct interpreted local date")
+            self.errorMessage = "Internal date error"
+            self.showingError = true
+            self.isLoading = false
+            return
+        }
+
+        let chartCake = ChartCake(
+            birthDate: interpretedLocalDate,
+            latitude: latitude,
+            longitude: longitude,
+            name: name,
+            sexString: "Male", // <- adjust if needed
+            categoryString: "Friend", // <- adjust if needed
+            roddenRating: "AA",
+            birthPlace: birthPlace
+        )
+
+        personStore.calculateAstrologicalData(for: newPerson, using: chartCake) { updatedPerson in
             DispatchQueue.main.async {
-                personStore.people.append(updatedPerson)
-                isLoading = false
-                presentationMode.wrappedValue.dismiss()
+                let userID = Auth.auth().currentUser?.uid ?? "unknown_user"
+                self.personStore.saveToFirestore(person: updatedPerson, userID: userID)
+                self.personStore.people.append(updatedPerson)
+                self.isLoading = false
+                self.presentationMode.wrappedValue.dismiss()
             }
         }
     }
+
 }
 
 
@@ -279,12 +349,15 @@ import SwiftUI
 
 struct Person: Identifiable {
     let id = UUID()
+    var documentID: String? // 🔥 Add this line
+
     let name: String
     let birthDate: Date
     let birthPlace: String
     let latitude: Double
     let longitude: Double
-    
+    var timeZoneID: String?
+
     // Astrological data
     var sunSign: String?
     var moonSign: String?
@@ -295,38 +368,176 @@ struct Person: Identifiable {
     var houseScores: [Int: Double]?
     var harmonyDiscordScores: [CelestialObject: (harmony: Double, discord: Double, net: Double)]?
     var signHarmonyDiscordScores: [Zodiac: (harmony: Double, discord: Double, net: Double)]?
-    init(name: String, birthDate: Date, birthPlace: String, latitude: Double, longitude: Double) {
+
+    // MARK: - Computed Properties
+
+    var strongestSign: String? {
+        guard let scores = signScores else { return nil }
+        return scores.max(by: { $0.value < $1.value })?.key.keyName
+    }
+
+    var strongestHouse: String? {
+        guard let scores = houseScores else { return nil }
+        if let maxEntry = scores.max(by: { $0.value < $1.value }) {
+            return "\(ordinal(maxEntry.key)) House"
+        }
+        return nil
+    }
+    func formattedBirthDate() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d, yyyy 'at' h:mma"
+        
+        if let tzID = self.timeZoneID, let timeZone = TimeZone(identifier: tzID) {
+            formatter.timeZone = timeZone
+        }
+        
+        return formatter.string(from: birthDate)
+    }
+    // MARK: - Initializer
+
+    init(name: String, birthDate: Date, birthPlace: String, latitude: Double, longitude: Double, timeZoneID: String? = nil, documentID: String? = nil) {
         self.name = name
         self.birthDate = birthDate
         self.birthPlace = birthPlace
         self.latitude = latitude
         self.longitude = longitude
+        self.timeZoneID = timeZoneID
+        self.documentID = documentID
+    }
+
+    // MARK: - Helper
+
+    private func ordinal(_ number: Int) -> String {
+        switch number {
+        case 1: return "1st"
+        case 2: return "2nd"
+        case 3: return "3rd"
+        case 21: return "21st"
+        case 22: return "22nd"
+        case 23: return "23rd"
+        default: return "\(number)th"
+        }
     }
 }
 
 class PersonStore: ObservableObject {
     @Published var people: [Person] = []
-    
+    @Published var editingPerson: Person? = nil
+
     init() {
    
     }
     
-   
-    
-    func calculateAstrologicalData(for person: Person, completion: @escaping (Person) -> Void) {
-        DispatchQueue.global().async {
-            let chartCake = ChartCake(
-                birthDate: person.birthDate,
-                latitude: person.latitude,
-                longitude: person.longitude,
-                name: person.name,
-                sexString: "Male", // you might want to add sex input in your BirthDataEntryView
-                categoryString: "Friend", // adjust based on user input
-                roddenRating: "AA",
-                birthPlace: person.birthPlace
-            )
+    func loadCharts(for userID: String) {
+        let db = Firestore.firestore()
+        db.collection("users").document(userID).collection("charts").getDocuments { snapshot, error in
+            if let error = error {
+                print("❌ Error loading charts: \(error.localizedDescription)")
+                return
+            }
 
+            guard let documents = snapshot?.documents else { return }
+
+            var loadedPeople: [Person] = []
+            let group = DispatchGroup()
+
+            for doc in documents {
+                let data = doc.data()
+
+                guard let name = data["name"] as? String,
+                      let birthPlace = data["birthPlace"] as? String,
+                      let latitude = data["latitude"] as? Double,
+                      let longitude = data["longitude"] as? Double,
+                      let timeStamp = data["birthDate"] as? Timestamp else {
+                    continue
+                }
+
+                let birthDate = timeStamp.dateValue()
+                let timeZoneID = data["timeZone"] as? String
+                let docID = doc.documentID
+
+                let person = Person(
+                    name: name,
+                    birthDate: birthDate,
+                    birthPlace: birthPlace,
+                    latitude: latitude,
+                    longitude: longitude,
+                    timeZoneID: timeZoneID,
+                    documentID: docID
+                )
+
+                // Safely interpret local time
+                let timeZone = TimeZone(identifier: timeZoneID ?? "UTC") ?? TimeZone(abbreviation: "UTC")!
+                let localComponents = Calendar(identifier: .gregorian).dateComponents(in: timeZone, from: birthDate)
+                var adjustedComponents = DateComponents()
+                adjustedComponents.calendar = Calendar(identifier: .gregorian)
+                adjustedComponents.timeZone = timeZone
+                adjustedComponents.year = localComponents.year
+                adjustedComponents.month = localComponents.month
+                adjustedComponents.day = localComponents.day
+                adjustedComponents.hour = localComponents.hour
+                adjustedComponents.minute = localComponents.minute
+                adjustedComponents.second = localComponents.second
+
+                guard let interpretedLocalDate = adjustedComponents.date else {
+                    print("⚠️ Failed to reconstruct local date for chart: \(name)")
+                    continue
+                }
+
+                let chartCake = ChartCake(
+                    birthDate: interpretedLocalDate,
+                    latitude: latitude,
+                    longitude: longitude,
+                    name: name,
+                    sexString: "Male", // ← customize as needed
+                    categoryString: "Friend", // ← customize as needed
+                    roddenRating: "AA",
+                    birthPlace: birthPlace
+                )
+
+                group.enter()
+                self.calculateAstrologicalData(for: person, using: chartCake) { fullPerson in
+                    loadedPeople.append(fullPerson)
+                    group.leave()
+                }
+            }
+
+            group.notify(queue: .main) {
+                self.people = loadedPeople
+            }
+        }
+    }
+
+
+    func saveToFirestore(person: Person, userID: String) {
+        let db = Firestore.firestore()
+        let chartData: [String: Any] = [
+            "id": person.id.uuidString,
+            "name": person.name,
+            "birthDate": Timestamp(date: person.birthDate),
+            "birthPlace": person.birthPlace,
+            "latitude": person.latitude,
+            "longitude": person.longitude,
+            "timeZone": person.timeZoneID
+
+         
+        ]
+
+        db.collection("users").document(userID).collection("charts").document(person.id.uuidString).setData(chartData) { error in
+            if let error = error {
+                print("❌ Error saving chart: \(error.localizedDescription)")
+            } else {
+                print("✅ Chart saved to Firestore")
+            }
+        }
+    }
+
+    
+    func calculateAstrologicalData(for person: Person, using chartCake: ChartCake, completion: @escaping (Person) -> Void) {
+        DispatchQueue.global().async {
             var updatedPerson = person
+            
+            // Use existing chartCake — DO NOT rebuild it here
             updatedPerson.sunSign = chartCake.natal.sun.sign.keyName
             updatedPerson.moonSign = chartCake.natal.moon.sign.keyName
             updatedPerson.ascendantSign = chartCake.ascendant.sign.keyName
@@ -337,13 +548,19 @@ class PersonStore: ObservableObject {
             updatedPerson.harmonyDiscordScores = chartCake.planetHarmonyDiscord.mapValues {
                 (harmony: $0.harmony, discord: $0.discord, net: $0.netHarmony)
             }
+       
+            print("🧪 CALCULATION DEBUG (with passed chartCake):")
+            print("Name: \(updatedPerson.name)")
+            print("Strongest Planet: \(updatedPerson.strongestPlanet ?? "-")")
+            print("Sun: \(updatedPerson.sunSign ?? "-")")
+            print("Moon: \(updatedPerson.moonSign ?? "-")")
+            print("Ascendant: \(updatedPerson.ascendantSign ?? "-")")
 
             DispatchQueue.main.async {
                 completion(updatedPerson)
             }
         }
     }
-
 
     
   

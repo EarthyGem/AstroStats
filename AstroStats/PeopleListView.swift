@@ -1,12 +1,6 @@
-//
-//  PeopleListView.swift
-//  AstroStats
-//
-//  Created by Errick Williams on 5/1/25.
-//
-
-
 import SwiftUI
+import FirebaseAuth
+import FirebaseFirestore
 
 struct PeopleListView: View {
     @EnvironmentObject var personStore: PersonStore
@@ -48,31 +42,60 @@ struct PeopleListView: View {
                     .environmentObject(personStore)
             }
             .searchable(text: $searchText, prompt: "Search by name or place")
+            .onAppear {
+                if let userID = Auth.auth().currentUser?.uid {
+                    personStore.loadCharts(for: userID)
+                }
+            }
         }
     }
     
     private func deletePerson(at offsets: IndexSet) {
+        guard let userID = Auth.auth().currentUser?.uid else {
+            print("❌ No UID. Cannot delete.")
+            return
+        }
+
+        for index in offsets {
+            let person = personStore.people[index]
+            let docID = person.documentID ?? person.id.uuidString // fallback if needed
+
+            print("🗑️ Attempting to delete: \(docID) for \(person.name)")
+
+            Firestore.firestore()
+                .collection("users")
+                .document(userID)
+                .collection("charts")
+                .document(docID)
+                .delete { error in
+                    if let error = error {
+                        print("❌ Firestore delete error:", error.localizedDescription)
+                    } else {
+                        print("✅ Firestore chart deleted: \(person.name)")
+                    }
+                }
+        }
+
         personStore.people.remove(atOffsets: offsets)
     }
-}
 
+}
 struct PersonRowView: View {
     let person: Person
-    
+
     var body: some View {
         HStack(spacing: 15) {
-            // Planet icon based on strongest planet
             PlanetIcon(planet: person.strongestPlanet ?? "Sun")
                 .frame(width: 40, height: 40)
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(person.name)
                     .font(.headline)
-                
+
                 Text(formatBirthInfo())
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-                
+
                 Text("\(person.sunSign ?? "Unknown") Sun • \(person.moonSign ?? "Unknown") Moon • \(person.ascendantSign ?? "Unknown") Rising")
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -80,31 +103,30 @@ struct PersonRowView: View {
         }
         .padding(.vertical, 6)
     }
-    
+
     private func formatBirthInfo() -> String {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = .medium
-        dateFormatter.timeStyle = .short
-        
-        return "\(dateFormatter.string(from: person.birthDate)) • \(person.birthPlace)"
+        // Simply use the person's formattedBirthDate() method instead of creating a new formatter
+        return "\(person.formattedBirthDate()) • \(person.birthPlace)"
     }
 }
 
 struct PlanetIcon: View {
     let planet: String
-    
+
     var body: some View {
         ZStack {
             Circle()
                 .fill(planetColor)
                 .frame(width: 40, height: 40)
-            
-            Image(systemName: planetSymbol)
-                .font(.system(size: 20))
+
+            GlyphProvider.planetImage(for: planet)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 20, height: 20)
                 .foregroundColor(.white)
         }
     }
-    
+
     private var planetColor: Color {
         switch planet.lowercased() {
         case "sun": return .orange
@@ -120,7 +142,10 @@ struct PlanetIcon: View {
         default: return .gray
         }
     }
+
+
     
+   
     private var planetSymbol: String {
         switch planet.lowercased() {
         case "sun": return "sun.max.fill"
