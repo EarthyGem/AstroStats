@@ -554,8 +554,11 @@ enum GlyphProvider {
 
 
 
+import SwiftUI
+
 struct AspectStrengthView: View {
     let person: Person
+    @State private var showKeyword = true
 
     private let aspectSymbolMapping: [Kind: String] = [
         .conjunction: "☌", .sextile: "⚹", .square: "□", .trine: "△", .opposition: "☍",
@@ -584,7 +587,6 @@ struct AspectStrengthView: View {
                 let totalScore = scores.map { $0.1 }.reduce(0, +)
 
                 ForEach(Array(scores.enumerated()), id: \.0) { index, pair in
-
                     let aspect = pair.0
                     let score = pair.1
                     let percent = (score / totalScore) * 100
@@ -594,7 +596,7 @@ struct AspectStrengthView: View {
                         Text(aspectSymbolMapping[aspect] ?? aspect.symbol)
                             .font(.system(size: 20))
                             .frame(width: 40, alignment: .leading)
-                            .foregroundColor(color)  // Apply the same color as the bar
+                            .foregroundColor(color)
 
                         Text(aspect.description.capitalized)
                             .frame(width: 100, alignment: .leading)
@@ -622,6 +624,18 @@ struct AspectStrengthView: View {
                     }
                     .padding(.horizontal)
                 }
+
+                Spacer(minLength: 20)
+
+                Picker("Meaning Type", selection: $showKeyword) {
+                    Text("Keywords").tag(true)
+                    Text("Degrees").tag(false)
+                }
+                .pickerStyle(SegmentedPickerStyle())
+                .padding(.horizontal)
+
+                AspectMeaningSummaryView(showKeyword: showKeyword)
+                    .padding(.bottom)
             }
             .padding()
         }
@@ -629,9 +643,9 @@ struct AspectStrengthView: View {
 
     private func calculateBarWidth(_ score: Double, _ totalScore: Double) -> CGFloat {
         let screenWidth = UIScreen.main.bounds.width
-        let maxBarWidth: CGFloat = screenWidth - 100 // more room for visible differentiation
-        let ratio = pow(score / totalScore, 0.8)     // nonlinear curve
-        return max(20, ratio * maxBarWidth)          // ensures a visible minimum
+        let maxBarWidth: CGFloat = screenWidth - 100
+        let ratio = pow(score / totalScore, 0.8)
+        return max(20, ratio * maxBarWidth)
     }
 
     private func aspectColor(_ aspect: Kind) -> Color {
@@ -651,6 +665,35 @@ struct AspectStrengthView: View {
     }
 }
 
+struct AspectMeaningSummaryView: View {
+    let showKeyword: Bool
+    let aspects: [Kind] = Kind.allCases
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(showKeyword ? "Aspect Keywords" : "Aspect Degrees")
+                .font(.headline)
+                .padding(.vertical, 8)
+
+            ForEach(aspects, id: \.self) { aspect in
+                HStack(alignment: .top) {
+                    Text("\(aspect.symbol) \(aspect.description.capitalized)")
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                        .frame(width: 140, alignment: .leading)
+
+                    Text(showKeyword ? aspect.keyword : aspect.degrees)
+                        .font(.subheadline)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.vertical, 2)
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(10)
+    }
+}
 
 
 //
