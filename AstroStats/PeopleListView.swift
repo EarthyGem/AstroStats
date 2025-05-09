@@ -6,7 +6,8 @@ struct PeopleListView: View {
     @EnvironmentObject var personStore: PersonStore
     @State private var showingAddPerson = false
     @State private var searchText = ""
-    
+    @State private var showLoadingAlert = false
+
     var filteredPeople: [Person] {
         if searchText.isEmpty {
             return personStore.people
@@ -17,39 +18,54 @@ struct PeopleListView: View {
             }
         }
     }
-    
+
     var body: some View {
         NavigationView {
-            List {
-                ForEach(filteredPeople) { person in
-                    NavigationLink(destination: AstrologyChartView(person: person)) {
-                        PersonRowView(person: person)
+            ZStack {
+                List {
+                    ForEach(filteredPeople) { person in
+                        NavigationLink(destination: AstrologyChartView(person: person)) {
+                            PersonRowView(person: person)
+                        }
+                    }
+                    .onDelete(perform: deletePerson)
+                }
+                .navigationTitle("Astrology Charts")
+                .navigationBarItems(
+                    trailing: Button(action: {
+                        showingAddPerson = true
+                    }) {
+                        Image(systemName: "plus")
+                            .font(.title2)
+                    }
+                )
+                .sheet(isPresented: $showingAddPerson) {
+                    BirthDataEntryView()
+                        .environmentObject(personStore)
+                }
+                .searchable(text: $searchText, prompt: "Search by name or place")
+                .onAppear {
+                    if let userID = Auth.auth().currentUser?.uid {
+                        showLoadingAlert = true
+                        personStore.loadCharts(for: userID) { success in
+                            // Keep the alert visible for at least 1.5 seconds
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                showLoadingAlert = false
+                            }
+                        }
                     }
                 }
-                .onDelete(perform: deletePerson)
+
+                // Loading overlay when charts are being loaded
+                if personStore.isLoading {
+                    LoadingOverlayView(message: "Loading your charts...")
+
             }
-            .navigationTitle("Astrology Charts")
-            .navigationBarItems(
-                trailing: Button(action: {
-                    showingAddPerson = true
-                }) {
-                    Image(systemName: "plus")
-                        .font(.title2)
-                }
-            )
-            .sheet(isPresented: $showingAddPerson) {
-                BirthDataEntryView()
-                    .environmentObject(personStore)
-            }
-            .searchable(text: $searchText, prompt: "Search by name or place")
-            .onAppear {
-                if let userID = Auth.auth().currentUser?.uid {
-                    personStore.loadCharts(for: userID)
-                }
+
             }
         }
     }
-    
+
     private func deletePerson(at offsets: IndexSet) {
         guard let userID = Auth.auth().currentUser?.uid else {
             print("❌ No UID. Cannot delete.")
@@ -78,7 +94,117 @@ struct PeopleListView: View {
 
         personStore.people.remove(atOffsets: offsets)
     }
+}
 
+import SwiftUI
+
+struct LoadingOverlayView: View {
+    var message: String
+    var detailMessage: String? = nil
+
+    var body: some View {
+        ZStack {
+            // Semi-transparent background
+            Color.black.opacity(0.15)
+                .ignoresSafeArea()
+
+            // Loading card
+            VStack(spacing: 20) {
+                // Custom loading spinner
+                LoadingSpinner()
+                    .frame(width: 50, height: 50)
+
+                VStack(spacing: 8) {
+                    // Main message
+                    Text(message)
+                        .font(.headline)
+                        .fontWeight(.medium)
+                        .multilineTextAlignment(.center)
+
+                    // Optional detail message
+                    if let detailMessage = detailMessage {
+                        Text(detailMessage)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .padding(.horizontal)
+            }
+            .padding(.vertical, 24)
+            .padding(.horizontal, 24)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(UIColor.systemBackground))
+                    .shadow(color: Color.black.opacity(0.15), radius: 15, x: 0, y: 4)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.gray.opacity(0.1), lineWidth: 1)
+            )
+            .frame(width: 260)
+            .transition(.opacity)
+            .animation(.easeInOut(duration: 0.3), value: true)
+        }
+    }
+}
+
+// Custom animated loading spinner
+struct LoadingSpinner: View {
+    @State private var isAnimating = false
+
+    var body: some View {
+        ZStack {
+            // Background circle
+            Circle()
+                .stroke(
+                    LinearGradient(
+                        gradient: Gradient(colors: [Color.gray.opacity(0.2), Color.gray.opacity(0.05)]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 4
+                )
+
+            // Spinning gradient arc
+            Circle()
+                .trim(from: 0, to: 0.7)
+                .stroke(
+                    AngularGradient(
+                        gradient: Gradient(colors: [Color.purple.opacity(0.8), Color.blue, Color.purple.opacity(0.2)]),
+                        center: .center
+                    ),
+                    style: StrokeStyle(lineWidth: 4, lineCap: .round)
+                )
+                .rotationEffect(Angle(degrees: isAnimating ? 360 : 0))
+                .animation(
+                    Animation.linear(duration: 1.5)
+                        .repeatForever(autoreverses: false),
+                    value: isAnimating
+                )
+        }
+        .onAppear {
+            isAnimating = true
+        }
+    }
+}
+
+// Preview for design time
+struct LoadingOverlayView_Previews: PreviewProvider {
+    static var previews: some View {
+        ZStack {
+            Color.gray.opacity(0.2).ignoresSafeArea()
+
+            VStack(spacing: 40) {
+                LoadingOverlayView(message: "Loading your charts...")
+
+                LoadingOverlayView(
+                    message: "Loading your charts...",
+                    detailMessage: "Please wait while we calculate your astrological data"
+                )
+            }
+        }
+    }
 }
 struct PersonRowView: View {
     let person: Person
@@ -144,8 +270,8 @@ struct PlanetIcon: View {
     }
 
 
-    
-   
+
+
     private var planetSymbol: String {
         switch planet.lowercased() {
         case "sun": return "sun.max.fill"

@@ -49,6 +49,9 @@ struct AstrologyChartView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 }
+
+
+
 // Birth Chart View that wraps the UIKit BirthChartView - with scrolling and zooming
 struct BirthChartView: View {
     let person: Person

@@ -368,6 +368,7 @@ struct Person: Identifiable {
     var houseScores: [Int: Double]?
     var harmonyDiscordScores: [CelestialObject: (harmony: Double, discord: Double, net: Double)]?
     var signHarmonyDiscordScores: [Zodiac: (harmony: Double, discord: Double, net: Double)]?
+    var aspectScores: [(Kind, Double)]?
 
     // MARK: - Computed Properties
 
@@ -383,6 +384,10 @@ struct Person: Identifiable {
         }
         return nil
     }
+    var strongestAspectKind: Kind? {
+        aspectScores?.first?.0
+    }
+
     func formattedBirthDate() -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d, yyyy 'at' h:mma"
@@ -393,6 +398,7 @@ struct Person: Identifiable {
         
         return formatter.string(from: birthDate)
     }
+
     // MARK: - Initializer
 
     init(name: String, birthDate: Date, birthPlace: String, latitude: Double, longitude: Double, timeZoneID: String? = nil, documentID: String? = nil) {
@@ -420,24 +426,44 @@ struct Person: Identifiable {
     }
 }
 
+import Foundation
+import FirebaseFirestore
+import SwiftUI
+
 class PersonStore: ObservableObject {
     @Published var people: [Person] = []
     @Published var editingPerson: Person? = nil
+    @Published var isLoading = false
 
     init() {
-   
+        // Empty initializer
     }
-    
-    func loadCharts(for userID: String) {
+
+    func loadCharts(for userID: String, completion: ((Bool) -> Void)? = nil) {
+        self.isLoading = true
+        print("🔍 Loading charts for user: \(userID)")
+
         let db = Firestore.firestore()
         db.collection("users").document(userID).collection("charts").getDocuments { snapshot, error in
             if let error = error {
                 print("❌ Error loading charts: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    completion?(false)
+                }
                 return
             }
 
-            guard let documents = snapshot?.documents else { return }
+            guard let documents = snapshot?.documents else {
+                print("⚠️ No documents found")
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    completion?(true)
+                }
+                return
+            }
 
+            print("📊 Found \(documents.count) charts")
             var loadedPeople: [Person] = []
             let group = DispatchGroup()
 
@@ -449,6 +475,7 @@ class PersonStore: ObservableObject {
                       let latitude = data["latitude"] as? Double,
                       let longitude = data["longitude"] as? Double,
                       let timeStamp = data["birthDate"] as? Timestamp else {
+                    print("⚠️ Missing required fields in document")
                     continue
                 }
 
@@ -503,13 +530,15 @@ class PersonStore: ObservableObject {
             }
 
             group.notify(queue: .main) {
-                self.people = loadedPeople
+                self.people = loadedPeople.sorted(by: { $0.name < $1.name })
+                self.isLoading = false
+                completion?(true)
+                print("✅ Charts loaded and calculated successfully")
             }
         }
     }
 
-
-    func saveToFirestore(person: Person, userID: String) {
+    func saveToFirestore(person: Person, userID: String, completion: ((Bool) -> Void)? = nil) {
         let db = Firestore.firestore()
         let chartData: [String: Any] = [
             "id": person.id.uuidString,
@@ -519,24 +548,25 @@ class PersonStore: ObservableObject {
             "latitude": person.latitude,
             "longitude": person.longitude,
             "timeZone": person.timeZoneID
-
-         
         ]
 
-        db.collection("users").document(userID).collection("charts").document(person.id.uuidString).setData(chartData) { error in
+        let docID = person.documentID ?? person.id.uuidString
+
+        db.collection("users").document(userID).collection("charts").document(docID).setData(chartData) { error in
             if let error = error {
                 print("❌ Error saving chart: \(error.localizedDescription)")
+                completion?(false)
             } else {
                 print("✅ Chart saved to Firestore")
+                completion?(true)
             }
         }
     }
 
-    
     func calculateAstrologicalData(for person: Person, using chartCake: ChartCake, completion: @escaping (Person) -> Void) {
         DispatchQueue.global().async {
             var updatedPerson = person
-            
+
             // Use existing chartCake — DO NOT rebuild it here
             updatedPerson.sunSign = chartCake.natal.sun.sign.keyName
             updatedPerson.moonSign = chartCake.natal.moon.sign.keyName
@@ -548,7 +578,10 @@ class PersonStore: ObservableObject {
             updatedPerson.harmonyDiscordScores = chartCake.planetHarmonyDiscord.mapValues {
                 (harmony: $0.harmony, discord: $0.discord, net: $0.netHarmony)
             }
-       
+
+            // ✅ Correctly placed outside of closure
+            updatedPerson.aspectScores = chartCake.natal.totalScoresByAspectType()
+
             print("🧪 CALCULATION DEBUG (with passed chartCake):")
             print("Name: \(updatedPerson.name)")
             print("Strongest Planet: \(updatedPerson.strongestPlanet ?? "-")")
@@ -561,10 +594,8 @@ class PersonStore: ObservableObject {
             }
         }
     }
-
-    
-  
 }
+
 
 
 

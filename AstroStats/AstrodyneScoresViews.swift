@@ -1,13 +1,3 @@
-//
-//  PlanetScoresView.swift
-//  AstroStats
-//
-//  Created by Errick Williams on 5/3/25.
-//
-
-
-import SwiftUI
-
 import SwiftUI
 
 struct PlanetScoresView: View {
@@ -66,7 +56,7 @@ struct PlanetScoresView: View {
 
                                 Rectangle()
                                     .fill(planetColor(planet.keyName))
-                                    .frame(width: calculateBarWidth(score, totalScore), height: 22)
+                                    .frame(width: calculateBarWidth(score), height: 22)
                                     .cornerRadius(6)
 
                                 Text(String(format: "%.1f%%", (score / totalScore) * 100))
@@ -108,22 +98,29 @@ struct PlanetScoresView: View {
         }
     }
 
-    private func calculateBarWidth(_ score: Double, _ totalScore: Double) -> CGFloat {
+    // 🟢 Correct version using strength-relative width
+    private func calculateBarWidth(_ score: Double) -> CGFloat {
         let screenWidth = UIScreen.main.bounds.width
-        let maxBarWidth: CGFloat = screenWidth - 100
-        let ratio = pow(score / totalScore, 0.8)
-        return max(20, ratio * maxBarWidth)
+        let maxBarWidth: CGFloat = screenWidth - 200
+
+        if let maxScore = person.planetScores?.values.max() {
+            let ratio = score / maxScore
+            return max(20, ratio * maxBarWidth)
+        }
+
+        return 40
     }
 
+    // 🟢 Use your updated color palette
     private func planetColor(_ planet: String) -> Color {
         switch planet.lowercased() {
         case "sun": return .orange
-        case "moon": return .blue
-        case "mercury": return .purple
-        case "venus": return .pink
+        case "moon": return .green
+        case "mercury": return Color(red: 0.5, green: 0.0, blue: 0.8)
+        case "venus": return .yellow
         case "mars": return .red
-        case "jupiter": return .yellow
-        case "saturn": return .gray
+        case "jupiter": return .indigo
+        case "saturn": return .blue
         case "uranus": return .green
         case "neptune": return .teal
         case "pluto": return .indigo
@@ -166,53 +163,9 @@ struct PlanetMeaningSummaryView: View {
 }
 
 
-struct PlanetSymbolView: View {
-    let planet: String
-    
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(planetColor)
-                .frame(width: 28, height: 28)
-            
-            Text(planetSymbol)
-                .font(.system(size: 16))
-                .foregroundColor(.white)
-        }
-    }
-    
-    private var planetSymbol: String {
-        switch planet.lowercased() {
-        case "sun": return "☉"
-        case "moon": return "☽"
-        case "mercury": return "☿"
-        case "venus": return "♀"
-        case "mars": return "♂"
-        case "jupiter": return "♃"
-        case "saturn": return "♄"
-        case "uranus": return "♅"
-        case "neptune": return "♆"
-        case "pluto": return "♇"
-        default: return "★"
-        }
-    }
-    
-    private var planetColor: Color {
-        switch planet.lowercased() {
-        case "sun": return .orange
-        case "moon": return .blue
-        case "mercury": return .purple
-        case "venus": return .pink
-        case "mars": return .red
-        case "jupiter": return .yellow
-        case "saturn": return .gray
-        case "uranus": return .green
-        case "neptune": return .teal
-        case "pluto": return .indigo
-        default: return .gray
-        }
-    }
-}
+import SwiftUI
+
+
 import SwiftUI
 
 struct SignScoresView: View {
@@ -272,7 +225,7 @@ struct SignScoresView: View {
 
                                 Rectangle()
                                     .fill(signColor(sign.keyName))
-                                    .frame(width: max(calculateBarWidth(score, totalScore), 20), height: 22)
+                                    .frame(width: calculateBarWidth(score), height: 22)
                                     .cornerRadius(6)
 
                                 Text(String(format: "%.1f%%", (score / totalScore) * 100))
@@ -322,23 +275,37 @@ struct SignScoresView: View {
         }
     }
 
-    private func calculateBarWidth(_ score: Double, _ totalScore: Double) -> CGFloat {
+    private func calculateBarWidth(_ score: Double) -> CGFloat {
         let screenWidth = UIScreen.main.bounds.width
-        let maxBarWidth: CGFloat = screenWidth - 100
-        let ratio = pow(score / totalScore, 0.8)
-        return max(20, ratio * maxBarWidth)
+        let maxBarWidth: CGFloat = screenWidth - 200
+
+        if let maxScore = person.signScores?.values.max() {
+            let ratio = score / maxScore
+            return max(20, ratio * maxBarWidth)
+        }
+
+        return 40
     }
 
     private func signColor(_ sign: String) -> Color {
         switch sign {
-        case "Aries", "Leo", "Sagittarius": return .red
-        case "Taurus", "Virgo", "Capricorn": return .green
-        case "Gemini", "Libra", "Aquarius": return .blue
-        case "Cancer", "Scorpio", "Pisces": return .teal
-        default: return .gray
+        case "Aries": return Color(red: 1.0, green: 0.4, blue: 0.4)
+        case "Leo": return Color(red: 1.0, green: 0.7, blue: 0.3)
+        case "Sagittarius": return Color(red: 1.0, green: 0.8, blue: 0.4)
+        case "Taurus": return Color(red: 1.0, green: 0.9, blue: 0.4)
+        case "Virgo": return Color(red: 0.3, green: 0.0, blue: 0.5)
+        case "Capricorn": return Color(red: 0.2, green: 0.2, blue: 0.2)
+        case "Gemini": return Color(red: 0.6, green: 0.3, blue: 0.9)
+        case "Libra": return Color(red: 1.0, green: 1.0, blue: 0.6)
+        case "Aquarius": return Color(red: 0.5, green: 0.5, blue: 0.5)
+        case "Cancer": return Color(red: 0.0, green: 0.4, blue: 0.0)
+        case "Scorpio": return Color(red: 0.6, green: 0.0, blue: 0.0)
+        case "Pisces": return Color(red: 0.0, green: 0.3, blue: 0.6)
+        default: return Color.gray
         }
     }
 }
+
 
 struct SignMeaningSummaryView: View {
     let showEvolutionaryAim: Bool
@@ -371,7 +338,8 @@ struct SignMeaningSummaryView: View {
 }
 
 
-// House Scores Chart View
+import SwiftUI
+
 struct HouseScoresView: View {
     let person: Person
     @State private var sortByStrength = false
@@ -417,7 +385,7 @@ struct HouseScoresView: View {
 
                                 Rectangle()
                                     .fill(houseColor(houseNumber))
-                                    .frame(width: calculateBarWidth(score, totalScore), height: 22)
+                                    .frame(width: calculateBarWidth(score), height: 22)
                                     .cornerRadius(6)
 
                                 Text(String(format: "%.1f%%", (score / totalScore) * 100))
@@ -448,11 +416,16 @@ struct HouseScoresView: View {
         }
     }
 
-    private func calculateBarWidth(_ score: Double, _ totalScore: Double) -> CGFloat {
+    private func calculateBarWidth(_ score: Double) -> CGFloat {
         let screenWidth = UIScreen.main.bounds.width
-        let maxBarWidth: CGFloat = screenWidth - 100
-        let ratio = pow(score / totalScore, 0.8)
-        return max(20, ratio * maxBarWidth)
+        let maxBarWidth: CGFloat = screenWidth - 200
+
+        if let maxScore = person.houseScores?.values.max() {
+            let ratio = score / maxScore
+            return max(20, ratio * maxBarWidth)
+        }
+
+        return 40
     }
 
     private func houseColor(_ house: Int) -> Color {
@@ -465,6 +438,7 @@ struct HouseScoresView: View {
         }
     }
 }
+
 
 struct HouseInformationView: View {
     let houseKeywords = [
@@ -556,6 +530,9 @@ enum GlyphProvider {
 
 import SwiftUI
 
+import SwiftUI
+import SwiftEphemeris
+
 struct AspectStrengthView: View {
     let person: Person
     @State private var showKeyword = true
@@ -572,57 +549,59 @@ struct AspectStrengthView: View {
                     .font(.headline)
                     .padding(.top)
 
-                let chart = ChartCake(
-                    birthDate: person.birthDate,
-                    latitude: person.latitude,
-                    longitude: person.longitude,
-                    name: person.name,
-                    sexString: "Unknown",
-                    categoryString: "Unknown",
-                    roddenRating: "AA",
-                    birthPlace: person.birthPlace
-                )
+                if let scores = person.aspectScores, !scores.isEmpty {
+                    let totalScore = scores.map { $0.1 }.reduce(0, +)
 
-                let scores = chart.natal.totalScoresByAspectType()
-                let totalScore = scores.map { $0.1 }.reduce(0, +)
+                    ForEach(Array(scores.enumerated()), id: \.0) { index, pair in
+                        let aspect = pair.0
+                        let score = pair.1
+                        let percent = (score / totalScore) * 100
+                        let color = aspectColor(aspect)
 
-                ForEach(Array(scores.enumerated()), id: \.0) { index, pair in
-                    let aspect = pair.0
-                    let score = pair.1
-                    let percent = (score / totalScore) * 100
-                    let color = aspectColor(aspect)
+                        HStack {
+                            // Aspect glyph
+                            Text(aspectSymbolMapping[aspect] ?? aspect.symbol)
+                                .font(.system(size: 24))
+                                .foregroundColor(color)
+                                .padding(.trailing, 2)
 
-                    HStack {
-                        Text(aspectSymbolMapping[aspect] ?? aspect.symbol)
-                            .font(.system(size: 20))
-                            .frame(width: 40, alignment: .leading)
-                            .foregroundColor(color)
+                            // Aspect name
+                            Text(aspect.description.capitalized)
+                                .font(.system(size: 16, weight: .medium))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
+                                .layoutPriority(1)
+                                .frame(width: 100, alignment: .leading)
 
-                        Text(aspect.description.capitalized)
-                            .frame(width: 100, alignment: .leading)
+                            // Bar with percentage
+                            ZStack(alignment: .leading) {
+                                Rectangle()
+                                    .fill(Color.gray.opacity(0.2))
+                                    .frame(height: 22)
+                                    .cornerRadius(6)
 
-                        ZStack(alignment: .leading) {
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.2))
-                                .frame(height: 22)
-                                .cornerRadius(6)
+                                Rectangle()
+                                    .fill(color)
+                                    .frame(width: calculateBarWidth(score, scores), height: 22)
+                                    .cornerRadius(6)
 
-                            Rectangle()
-                                .fill(color)
-                                .frame(width: calculateBarWidth(score, totalScore), height: 22)
-                                .cornerRadius(6)
+                                Text(String(format: "%.1f%%", percent))
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                            }
 
-                            Text(String(format: "%.1f%%", percent))
+                            // Raw score
+                            Text(String(format: "%.1f", score))
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 8)
+                                .frame(width: 40, alignment: .trailing)
                         }
-
-                        Text(String(format: "%.1f", score))
-                            .font(.system(size: 14, weight: .medium))
-                            .frame(width: 40, alignment: .trailing)
+                        .padding(.horizontal)
                     }
-                    .padding(.horizontal)
+                } else {
+                    Text("Aspect score data not available")
+                        .foregroundColor(.secondary)
+                        .padding()
                 }
 
                 Spacer(minLength: 20)
@@ -641,11 +620,14 @@ struct AspectStrengthView: View {
         }
     }
 
-    private func calculateBarWidth(_ score: Double, _ totalScore: Double) -> CGFloat {
+    private func calculateBarWidth(_ score: Double, _ allScores: [(Kind, Double)]) -> CGFloat {
         let screenWidth = UIScreen.main.bounds.width
-        let maxBarWidth: CGFloat = screenWidth - 100
-        let ratio = pow(score / totalScore, 0.8)
-        return max(20, ratio * maxBarWidth)
+        let maxBarWidth: CGFloat = screenWidth - 200
+        if let maxScore = allScores.map({ $0.1 }).max(), maxScore > 0 {
+            let ratio = score / maxScore
+            return max(20, ratio * maxBarWidth)
+        }
+        return 40
     }
 
     private func aspectColor(_ aspect: Kind) -> Color {
