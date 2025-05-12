@@ -1,5 +1,7 @@
 import SwiftUI
 
+import SwiftUI
+
 struct PlanetScoresView: View {
     let person: Person
     @State private var sortByStrength = true
@@ -36,17 +38,22 @@ struct PlanetScoresView: View {
 
                     ForEach(sortedPlanets, id: \.0) { planet, score in
                         HStack {
-                            HStack(spacing: 4) {
-                                GlyphProvider.planetImage(for: planet.keyName)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 28, height: 28)
+                            // Wrap in NavigationLink but keep original dimensions
+                            NavigationLink(destination: PlanetDetailView(person: person, planet: planet)) {
+                                HStack(spacing: 4) {
+                                    GlyphProvider.planetImage(for: planet.keyName)
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 28, height: 28)
 
-                                Text(planet.keyName)
-                                    .font(.system(size: 16, weight: .medium))
-                                    .frame(width: 80, alignment: .leading)
+                                    Text(planet.keyName)
+                                        .font(.system(size: 16, weight: .medium))
+                                        .frame(width: 80, alignment: .leading)
+                                }
+                                .frame(width: 120, alignment: .leading)
+                                // No extra padding or background to maintain original size
                             }
-                            .frame(width: 120, alignment: .leading)
+                            .buttonStyle(PlainButtonStyle())
 
                             ZStack(alignment: .leading) {
                                 Rectangle()
@@ -98,7 +105,7 @@ struct PlanetScoresView: View {
         }
     }
 
-    // 🟢 Correct version using strength-relative width
+    // Correct version using strength-relative width
     private func calculateBarWidth(_ score: Double) -> CGFloat {
         let screenWidth = UIScreen.main.bounds.width
         let maxBarWidth: CGFloat = screenWidth - 200
@@ -110,6 +117,28 @@ struct PlanetScoresView: View {
 
         return 40
     }
+
+    // Color palette for planets
+    private func planetColor(_ planet: String) -> Color {
+        switch planet.lowercased() {
+        case "sun": return .orange
+        case "moon": return .green
+        case "mercury": return Color(red: 0.5, green: 0.0, blue: 0.8)
+        case "venus": return .yellow
+        case "mars": return .red
+        case "jupiter": return .indigo
+        case "saturn": return .blue
+        case "uranus": return .green
+        case "neptune": return .teal
+        case "pluto": return .indigo
+        case "n.node", "northnode", "mean node": return Color(red: 0.8, green: 0.4, blue: 0.0)
+        case "s.node", "southnode", "mean south node": return Color(red: 0.7, green: 0.7, blue: 0.7)
+        case "ac", "asc": return .white
+        case "mc": return .white
+        default: return .gray
+        }
+    }
+}
 
     // 🟢 Use your updated color palette
     private func planetColor(_ planet: String) -> Color {
@@ -127,7 +156,7 @@ struct PlanetScoresView: View {
         default: return .gray
         }
     }
-}
+
 
 struct PlanetMeaningSummaryView: View {
     let showGodFunction: Bool
@@ -165,6 +194,8 @@ struct PlanetMeaningSummaryView: View {
 
 import SwiftUI
 
+
+import SwiftUI
 
 import SwiftUI
 
@@ -230,7 +261,7 @@ struct SignScoresView: View {
 
                                 Text(String(format: "%.1f%%", (score / totalScore) * 100))
                                     .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(signTextColor(sign.keyName))
                                     .padding(.horizontal, 8)
                                     .shadow(color: .black.opacity(0.3), radius: 1, x: 0, y: 1)
                             }
@@ -248,6 +279,9 @@ struct SignScoresView: View {
                 }
 
                 Spacer(minLength: 20)
+                Text("Strongest Planet Sign: \(person.strongestPlanetSign ?? "Unknown")")
+                    .font(.headline)
+                    .padding(.bottom, 4)
 
                 Text("Sun Sign: \(person.sunSign ?? "Unknown")")
                     .font(.headline)
@@ -275,6 +309,15 @@ struct SignScoresView: View {
         }
     }
 
+    private func signTextColor(_ sign: String) -> Color {
+        switch sign {
+        case "Libra":
+            return Color(red: 0.1, green: 0.1, blue: 0.4) // Dark blue for better contrast
+        default:
+            return .white
+        }
+    }
+
     private func calculateBarWidth(_ score: Double) -> CGFloat {
         let screenWidth = UIScreen.main.bounds.width
         let maxBarWidth: CGFloat = screenWidth - 200
@@ -289,19 +332,19 @@ struct SignScoresView: View {
 
     private func signColor(_ sign: String) -> Color {
         switch sign {
-        case "Aries": return Color(red: 1.0, green: 0.4, blue: 0.4)
-        case "Leo": return Color(red: 1.0, green: 0.7, blue: 0.3)
-        case "Sagittarius": return Color(red: 1.0, green: 0.8, blue: 0.4)
-        case "Taurus": return Color(red: 1.0, green: 0.9, blue: 0.4)
-        case "Virgo": return Color(red: 0.3, green: 0.0, blue: 0.5)
-        case "Capricorn": return Color(red: 0.2, green: 0.2, blue: 0.2)
-        case "Gemini": return Color(red: 0.6, green: 0.3, blue: 0.9)
-        case "Libra": return Color(red: 1.0, green: 1.0, blue: 0.6)
-        case "Aquarius": return Color(red: 0.5, green: 0.5, blue: 0.5)
-        case "Cancer": return Color(red: 0.0, green: 0.4, blue: 0.0)
-        case "Scorpio": return Color(red: 0.6, green: 0.0, blue: 0.0)
-        case "Pisces": return Color(red: 0.0, green: 0.3, blue: 0.6)
-        default: return Color.gray
+        case "Aries":       return Color(red: 1.0, green: 0.5, blue: 0.5) // Light Red (Mars - masculine)
+        case "Taurus":      return Color(red: 0.8, green: 0.8, blue: 0.0) // Deep Yellow (Venus - feminine)
+        case "Gemini":      return Color(red: 0.7, green: 0.5, blue: 1.0) // Light Violet (Mercury - masculine)
+        case "Cancer":      return Color(red: 0.0, green: 0.3, blue: 0.0) // Deep Green (Moon - feminine)
+        case "Leo":         return Color(red: 1.0, green: 0.7, blue: 0.2) // Bright Orange (Sun - masculine)
+        case "Virgo":       return Color(red: 0.4, green: 0.2, blue: 0.6) // Deep Violet (Mercury - feminine)
+        case "Libra":       return Color(red: 1.0, green: 1.0, blue: 0.6) // Bright Yellow (Venus - masculine)
+        case "Scorpio":     return Color(red: 0.6, green: 0.0, blue: 0.0) // Deep Red (Mars - feminine)
+        case "Sagittarius": return Color(red: 0.5, green: 0.3, blue: 0.9) // Light Indigo (Jupiter - masculine)
+        case "Capricorn":   return Color(red: 0.0, green: 0.0, blue: 0.5) // Deep Blue (Saturn - feminine)
+        case "Aquarius":    return Color(red: 0.3, green: 0.3, blue: 1.0) // Light Blue (Saturn - masculine)
+        case "Pisces":      return Color(red: 0.2, green: 0.0, blue: 0.5) // Deep Indigo (Jupiter - feminine)
+        default:            return Color.gray
         }
     }
 }

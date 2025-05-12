@@ -359,6 +359,7 @@ struct Person: Identifiable {
     var timeZoneID: String?
 
     // Astrological data
+    var strongestPlanetSign: String?
     var sunSign: String?
     var moonSign: String?
     var ascendantSign: String?
@@ -568,13 +569,14 @@ class PersonStore: ObservableObject {
             var updatedPerson = person
 
             // Use existing chartCake — DO NOT rebuild it here
+            updatedPerson.strongestPlanetSign = chartCake.strongestPlanetSign.keyName
             updatedPerson.sunSign = chartCake.natal.sun.sign.keyName
             updatedPerson.moonSign = chartCake.natal.moon.sign.keyName
             updatedPerson.ascendantSign = chartCake.ascendant.sign.keyName
-            updatedPerson.strongestPlanet = chartCake.strongestPlanet.keyName
-            updatedPerson.planetScores = chartCake.planetScores.mapValues { Double($0) }
-            updatedPerson.signScores = chartCake.signScores.mapKeys { $0 }
-            updatedPerson.houseScores = chartCake.houseScores
+            updatedPerson.strongestPlanet = chartCake.strongestPlanetSN.keyName
+            updatedPerson.planetScores = chartCake.planetScoresSN.mapValues { Double($0) }
+            updatedPerson.signScores = chartCake.signScoresSN.mapKeys { $0 }
+            updatedPerson.houseScores = chartCake.houseScoresSN
             updatedPerson.harmonyDiscordScores = chartCake.planetHarmonyDiscord.mapValues {
                 (harmony: $0.harmony, discord: $0.discord, net: $0.netHarmony)
             }
