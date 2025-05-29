@@ -27,12 +27,30 @@ struct PeopleListView: View {
                         NavigationLink(destination: AstrologyChartView(person: person)) {
                             PersonRowView(person: person)
                         }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                if let index = personStore.people.firstIndex(where: { $0.id == person.id }) {
+                                    deletePerson(at: IndexSet(integer: index))
+                                }
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                            Button {
+                                personStore.editingPerson = person
+                                showingAddPerson = true
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            .tint(.blue)
+                        }
                     }
-                    .onDelete(perform: deletePerson)
                 }
                 .navigationTitle("Astrology Charts")
                 .navigationBarItems(
                     trailing: Button(action: {
+                        personStore.editingPerson = nil
                         showingAddPerson = true
                     }) {
                         Image(systemName: "plus")
@@ -48,7 +66,6 @@ struct PeopleListView: View {
                     if let userID = Auth.auth().currentUser?.uid {
                         showLoadingAlert = true
                         personStore.loadCharts(for: userID) { success in
-                            // Keep the alert visible for at least 1.5 seconds
                             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                                 showLoadingAlert = false
                             }
@@ -56,12 +73,9 @@ struct PeopleListView: View {
                     }
                 }
 
-                // Loading overlay when charts are being loaded
                 if personStore.isLoading {
                     LoadingOverlayView(message: "Loading your charts...")
-
-            }
-
+                }
             }
         }
     }

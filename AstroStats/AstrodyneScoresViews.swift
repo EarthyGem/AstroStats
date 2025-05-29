@@ -196,8 +196,7 @@ import SwiftUI
 
 
 import SwiftUI
-
-import SwiftUI
+import SwiftEphemeris
 
 struct SignScoresView: View {
     let person: Person
@@ -235,42 +234,45 @@ struct SignScoresView: View {
                     }()
 
                     ForEach(signs, id: \.0) { sign, score in
-                        HStack {
-                            HStack(spacing: 4) {
-                                GlyphProvider.signImage(for: sign.keyName)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 28, height: 28)
+                        NavigationLink(destination: SignDetailsView(person: person, sign: sign)) {
+                            HStack {
+                                HStack(spacing: 4) {
+                                    GlyphProvider.signImage(for: sign.keyName)
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 28, height: 28)
 
-                                Text(sign.keyName)
-                                    .font(.system(size: 16, weight: .medium))
-                                    .frame(width: 80, alignment: .leading)
-                            }
-                            .frame(width: 120, alignment: .leading)
+                                    Text(sign.keyName)
+                                        .font(.system(size: 16, weight: .medium))
+                                        .frame(width: 80, alignment: .leading)
+                                }
+                                .frame(width: 120, alignment: .leading)
 
-                            ZStack(alignment: .leading) {
-                                Rectangle()
-                                    .fill(Color.gray.opacity(0.2))
-                                    .frame(height: 22)
-                                    .cornerRadius(6)
+                                ZStack(alignment: .leading) {
+                                    Rectangle()
+                                        .fill(Color.gray.opacity(0.2))
+                                        .frame(height: 22)
+                                        .cornerRadius(6)
 
-                                Rectangle()
-                                    .fill(signColor(sign.keyName))
-                                    .frame(width: calculateBarWidth(score), height: 22)
-                                    .cornerRadius(6)
+                                    Rectangle()
+                                        .fill(signColor(sign.keyName))
+                                        .frame(width: calculateBarWidth(score), height: 22)
+                                        .cornerRadius(6)
 
-                                Text(String(format: "%.1f%%", (score / totalScore) * 100))
+                                    Text(String(format: "%.1f%%", (score / totalScore) * 100))
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(signTextColor(sign.keyName))
+                                        .padding(.horizontal, 8)
+                                        .shadow(color: .black.opacity(0.3), radius: 1, x: 0, y: 1)
+                                }
+
+                                Text(String(format: "%.1f", score))
                                     .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(signTextColor(sign.keyName))
-                                    .padding(.horizontal, 8)
-                                    .shadow(color: .black.opacity(0.3), radius: 1, x: 0, y: 1)
+                                    .frame(width: 40, alignment: .trailing)
                             }
-
-                            Text(String(format: "%.1f", score))
-                                .font(.system(size: 14, weight: .medium))
-                                .frame(width: 40, alignment: .trailing)
+                            .padding(.horizontal)
                         }
-                        .padding(.horizontal)
+                        .buttonStyle(PlainButtonStyle())
                     }
                 } else {
                     Text("Zodiac sign data not available")
@@ -279,6 +281,7 @@ struct SignScoresView: View {
                 }
 
                 Spacer(minLength: 20)
+
                 Text("Strongest Planet Sign: \(person.strongestPlanetSign ?? "Unknown")")
                     .font(.headline)
                     .padding(.bottom, 4)
@@ -312,7 +315,7 @@ struct SignScoresView: View {
     private func signTextColor(_ sign: String) -> Color {
         switch sign {
         case "Libra":
-            return Color(red: 0.1, green: 0.1, blue: 0.4) // Dark blue for better contrast
+            return Color(red: 0.1, green: 0.1, blue: 0.4)
         default:
             return .white
         }
@@ -332,18 +335,18 @@ struct SignScoresView: View {
 
     private func signColor(_ sign: String) -> Color {
         switch sign {
-        case "Aries":       return Color(red: 1.0, green: 0.5, blue: 0.5) // Light Red (Mars - masculine)
-        case "Taurus":      return Color(red: 0.8, green: 0.8, blue: 0.0) // Deep Yellow (Venus - feminine)
-        case "Gemini":      return Color(red: 0.7, green: 0.5, blue: 1.0) // Light Violet (Mercury - masculine)
-        case "Cancer":      return Color(red: 0.0, green: 0.3, blue: 0.0) // Deep Green (Moon - feminine)
-        case "Leo":         return Color(red: 1.0, green: 0.7, blue: 0.2) // Bright Orange (Sun - masculine)
-        case "Virgo":       return Color(red: 0.4, green: 0.2, blue: 0.6) // Deep Violet (Mercury - feminine)
-        case "Libra":       return Color(red: 1.0, green: 1.0, blue: 0.6) // Bright Yellow (Venus - masculine)
-        case "Scorpio":     return Color(red: 0.6, green: 0.0, blue: 0.0) // Deep Red (Mars - feminine)
-        case "Sagittarius": return Color(red: 0.5, green: 0.3, blue: 0.9) // Light Indigo (Jupiter - masculine)
-        case "Capricorn":   return Color(red: 0.0, green: 0.0, blue: 0.5) // Deep Blue (Saturn - feminine)
-        case "Aquarius":    return Color(red: 0.3, green: 0.3, blue: 1.0) // Light Blue (Saturn - masculine)
-        case "Pisces":      return Color(red: 0.2, green: 0.0, blue: 0.5) // Deep Indigo (Jupiter - feminine)
+        case "Aries":       return Color(red: 1.0, green: 0.5, blue: 0.5)
+        case "Taurus":      return Color(red: 0.8, green: 0.8, blue: 0.0)
+        case "Gemini":      return Color(red: 0.7, green: 0.5, blue: 1.0)
+        case "Cancer":      return Color(red: 0.0, green: 0.3, blue: 0.0)
+        case "Leo":         return Color(red: 1.0, green: 0.7, blue: 0.2)
+        case "Virgo":       return Color(red: 0.4, green: 0.2, blue: 0.6)
+        case "Libra":       return Color(red: 1.0, green: 1.0, blue: 0.6)
+        case "Scorpio":     return Color(red: 0.6, green: 0.0, blue: 0.0)
+        case "Sagittarius": return Color(red: 0.5, green: 0.3, blue: 0.9)
+        case "Capricorn":   return Color(red: 0.0, green: 0.0, blue: 0.5)
+        case "Aquarius":    return Color(red: 0.3, green: 0.3, blue: 1.0)
+        case "Pisces":      return Color(red: 0.2, green: 0.0, blue: 0.5)
         default:            return Color.gray
         }
     }
@@ -383,6 +386,8 @@ struct SignMeaningSummaryView: View {
 
 import SwiftUI
 
+import SwiftUI
+
 struct HouseScoresView: View {
     let person: Person
     @State private var sortByStrength = false
@@ -415,34 +420,37 @@ struct HouseScoresView: View {
                     }()
 
                     ForEach(sortedHouses, id: \.0) { houseNumber, score in
-                        HStack {
-                            Text("House \(houseNumber)")
-                                .font(.system(size: 16, weight: .medium))
-                                .frame(width: 120, alignment: .leading)
+                        NavigationLink(destination: HouseDetailsView(person: person, house: houseNumber)) {
+                            HStack {
+                                Text("House \(houseNumber)")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .frame(width: 120, alignment: .leading)
 
-                            ZStack(alignment: .leading) {
-                                Rectangle()
-                                    .fill(Color.gray.opacity(0.2))
-                                    .frame(height: 22)
-                                    .cornerRadius(6)
+                                ZStack(alignment: .leading) {
+                                    Rectangle()
+                                        .fill(Color.gray.opacity(0.2))
+                                        .frame(height: 22)
+                                        .cornerRadius(6)
 
-                                Rectangle()
-                                    .fill(houseColor(houseNumber))
-                                    .frame(width: calculateBarWidth(score), height: 22)
-                                    .cornerRadius(6)
+                                    Rectangle()
+                                        .fill(houseColor(houseNumber))
+                                        .frame(width: calculateBarWidth(score), height: 22)
+                                        .cornerRadius(6)
 
-                                Text(String(format: "%.1f%%", (score / totalScore) * 100))
+                                    Text(String(format: "%.1f%%", (score / totalScore) * 100))
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 8)
+                                        .shadow(color: .black.opacity(0.3), radius: 1, x: 0, y: 1)
+                                }
+
+                                Text(String(format: "%.1f", score))
                                     .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 8)
-                                    .shadow(color: .black.opacity(0.3), radius: 1, x: 0, y: 1)
+                                    .frame(width: 40, alignment: .trailing)
                             }
-
-                            Text(String(format: "%.1f", score))
-                                .font(.system(size: 14, weight: .medium))
-                                .frame(width: 40, alignment: .trailing)
+                            .padding(.horizontal)
                         }
-                        .padding(.horizontal)
+                        .buttonStyle(PlainButtonStyle())
                     }
                 } else {
                     Text("House data not available")
@@ -481,7 +489,6 @@ struct HouseScoresView: View {
         }
     }
 }
-
 
 struct HouseInformationView: View {
     let houseKeywords = [
@@ -527,48 +534,6 @@ struct HouseInformationView: View {
 }
 
 
-// Helper extension for rounded corners
-extension View {
-    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
-        clipShape(RoundedCorner(radius: radius, corners: corners))
-    }
-}
-
-struct RoundedCorner: Shape {
-    var radius: CGFloat = .infinity
-    var corners: UIRectCorner = .allCorners
-    
-    func path(in rect: CGRect) -> Path {
-        let path = UIBezierPath(
-            roundedRect: rect,
-            byRoundingCorners: corners,
-            cornerRadii: CGSize(width: radius, height: radius)
-        )
-        return Path(path.cgPath)
-    }
-}
-
-struct AstrologyChartView_Previews: PreviewProvider {
-    static var previews: some View {
-        let samplePerson = PersonStore().people[0]
-        AstrologyChartView(person: samplePerson)
-    }
-}
-import SwiftUI
-import SwiftEphemeris
-
-enum GlyphProvider {
-    static func planetImage(for planet: String) -> Image {
-        let name = planet.lowercased()
-        return Image(uiImage: UIImage(named: name) ?? UIImage(systemName: "questionmark.circle")!)
-    }
-
-    static func signImage(for signKey: String) -> Image {
-        let name = signKey.capitalized
-        return Image(uiImage: UIImage(named: name) ?? UIImage(systemName: "questionmark.circle")!)
-    }
-}
-
 
 
 import SwiftUI
@@ -598,49 +563,44 @@ struct AspectStrengthView: View {
                     ForEach(Array(scores.enumerated()), id: \.0) { index, pair in
                         let aspect = pair.0
                         let score = pair.1
-                        let percent = (score / totalScore) * 100
-                        let color = aspectColor(aspect)
 
-                        HStack {
-                            // Aspect glyph
-                            Text(aspectSymbolMapping[aspect] ?? aspect.symbol)
-                                .font(.system(size: 24))
-                                .foregroundColor(color)
-                                .padding(.trailing, 2)
+                        NavigationLink(destination: AspectDetailsView(person: person, aspectKind: aspect)) {
+                            HStack {
+                                Text(aspectSymbolMapping[aspect] ?? aspect.symbol)
+                                    .font(.system(size: 24))
+                                    .foregroundColor(aspectColor(aspect))
+                                    .padding(.trailing, 2)
 
-                            // Aspect name
-                            Text(aspect.description.capitalized)
-                                .font(.system(size: 16, weight: .medium))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.75)
-                                .layoutPriority(1)
-                                .frame(width: 100, alignment: .leading)
+                                Text(aspect.description.capitalized)
+                                    .font(.system(size: 16, weight: .medium))
+                                    .frame(width: 100, alignment: .leading)
 
-                            // Bar with percentage
-                            ZStack(alignment: .leading) {
-                                Rectangle()
-                                    .fill(Color.gray.opacity(0.2))
-                                    .frame(height: 22)
-                                    .cornerRadius(6)
+                                ZStack(alignment: .leading) {
+                                    Rectangle()
+                                        .fill(Color.gray.opacity(0.2))
+                                        .frame(height: 22)
+                                        .cornerRadius(6)
 
-                                Rectangle()
-                                    .fill(color)
-                                    .frame(width: calculateBarWidth(score, scores), height: 22)
-                                    .cornerRadius(6)
+                                    Rectangle()
+                                        .fill(aspectColor(aspect))
+                                        .frame(width: calculateBarWidth(score, scores), height: 22)
+                                        .cornerRadius(6)
 
-                                Text(String(format: "%.1f%%", percent))
+                                    Text(String(format: "%.1f%%", (score / totalScore) * 100))
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 8)
+                                }
+
+                                Text(String(format: "%.1f", score))
                                     .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 8)
+                                    .frame(width: 40, alignment: .trailing)
                             }
-
-                            // Raw score
-                            Text(String(format: "%.1f", score))
-                                .font(.system(size: 14, weight: .medium))
-                                .frame(width: 40, alignment: .trailing)
+                            .padding(.horizontal)
                         }
-                        .padding(.horizontal)
+                        .buttonStyle(PlainButtonStyle())
                     }
+
                 } else {
                     Text("Aspect score data not available")
                         .foregroundColor(.secondary)
@@ -817,3 +777,52 @@ struct AspectMeaningSummaryView: View {
 //        }
 //    }
 //}
+
+
+
+
+// Helper extension for rounded corners
+extension View {
+    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
+        clipShape(RoundedCorner(radius: radius, corners: corners))
+    }
+}
+
+struct RoundedCorner: Shape {
+    var radius: CGFloat = .infinity
+    var corners: UIRectCorner = .allCorners
+
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(
+            roundedRect: rect,
+            byRoundingCorners: corners,
+            cornerRadii: CGSize(width: radius, height: radius)
+        )
+        return Path(path.cgPath)
+    }
+}
+
+struct AstrologyChartView_Previews: PreviewProvider {
+    static var previews: some View {
+        let samplePerson = PersonStore().people[0]
+        AstrologyChartView(person: samplePerson)
+    }
+}
+import SwiftUI
+import SwiftEphemeris
+
+enum GlyphProvider {
+    static func planetImage(for planet: String) -> Image {
+        let name = planet.lowercased()
+        return Image(uiImage: UIImage(named: name) ?? UIImage(systemName: "questionmark.circle")!)
+    }
+
+    static func signImage(for signKey: String) -> Image {
+        let name = signKey.capitalized
+        return Image(uiImage: UIImage(named: name) ?? UIImage(systemName: "questionmark.circle")!)
+    }
+}
+
+
+
+import SwiftUI

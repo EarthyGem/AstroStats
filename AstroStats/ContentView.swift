@@ -1,12 +1,13 @@
-import MapKit
+ import MapKit
 import FirebaseAuth
 import CoreLocation
 import SwiftEphemeris
 import FirebaseFirestore
+
 struct BirthDataEntryView: View {
     @Environment(\.presentationMode) var presentationMode
     @EnvironmentObject var personStore: PersonStore
-    
+
     @State private var name: String = ""
     @State private var birthDate = Date()
     @State private var birthPlace: String = ""
@@ -14,34 +15,44 @@ struct BirthDataEntryView: View {
     @State private var latitude: Double = 0.0
     @State private var longitude: Double = 0.0
     @State private var resolvedTimeZone: TimeZone? = nil
+    @State private var originalTimeZoneID: String?
 
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showingError = false
-    
+
     private let dateRange: ClosedRange<Date> = {
         let calendar = Calendar.current
         let startComponents = DateComponents(year: 1900, month: 1, day: 1)
         let endComponents = DateComponents(year: 2025, month: 12, day: 31)
         return calendar.date(from: startComponents)!...calendar.date(from: endComponents)!
     }()
-    
+
     var body: some View {
         NavigationView {
             Form {
                 Section(header: Text("Personal Information")) {
                     TextField("Name", text: $name)
                         .padding(.vertical, 8)
-                    
-                    DatePicker("Birth Date & Time", selection: $birthDate, in: dateRange, displayedComponents: [.date, .hourAndMinute])
-                        .datePickerStyle(GraphicalDatePickerStyle())
-                        .padding(.vertical, 8)
-                    
+
+                    VStack(alignment: .leading) {
+                        DatePicker("Birth Date & Time", selection: $birthDate, in: dateRange, displayedComponents: [.date, .hourAndMinute])
+                            .datePickerStyle(GraphicalDatePickerStyle())
+                            .padding(.vertical, 8)
+
+                        // Show timezone info when editing
+                        if let timeZone = resolvedTimeZone {
+                            Text("Time shown in: \(timeZone.localizedName(for: .standard, locale: .current) ?? timeZone.identifier)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
                     VStack(alignment: .leading) {
                         Text("Birth Place")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        
+
                         Button(action: {
                             showingPlacePicker = true
                         }) {
@@ -54,7 +65,7 @@ struct BirthDataEntryView: View {
                             }
                         }
                         .padding(.vertical, 8)
-                        
+
                         if latitude != 0 && longitude != 0 {
                             Text("Coordinates: \(latitude, specifier: "%.4f"), \(longitude, specifier: "%.4f")")
                                 .font(.caption)
@@ -62,7 +73,7 @@ struct BirthDataEntryView: View {
                         }
                     }
                 }
-                
+
                 Section {
                     Button(action: saveData) {
                         HStack {
@@ -71,7 +82,7 @@ struct BirthDataEntryView: View {
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle())
                             } else {
-                                Text("Save")
+                                Text(personStore.editingPerson == nil ? "Save" : "Update")
                                     .fontWeight(.semibold)
                             }
                             Spacer()
@@ -82,7 +93,7 @@ struct BirthDataEntryView: View {
                     .listRowBackground(Color.blue.opacity(0.2))
                 }
             }
-            .navigationTitle("New Birth Chart")
+            .navigationTitle(personStore.editingPerson == nil ? "New Birth Chart" : "Edit Birth Chart")
             .sheet(isPresented: $showingPlacePicker) {
                 LocationSearchView(selectedLocation: $birthPlace, latitude: $latitude, longitude: $longitude)
             }
@@ -93,8 +104,67 @@ struct BirthDataEntryView: View {
                     dismissButton: .default(Text("OK"))
                 )
             }
+            .onAppear {
+                if let person = personStore.editingPerson {
+                    name = person.name
+                    birthPlace = person.birthPlace
+                    latitude = person.latitude
+                    longitude = person.longitude
+                    originalTimeZoneID = person.timeZoneID
+                    resolvedTimeZone = TimeZone(identifier: person.timeZoneID ?? "")
+
+                    // Convert UTC stored date to local time in birth place timezone for editing
+                    if let tz = resolvedTimeZone {
+                        birthDate = convertUTCToLocalForEditing(person.birthDate, in: tz)
+                    } else {
+                        birthDate = person.birthDate
+                    }
+                }
+            }
         }
     }
+
+    // MARK: - Helper Methods
+
+    /// Converts a UTC date to a local date that displays correctly in the DatePicker
+    /// for the birth place timezone
+    private func convertUTCToLocalForEditing(_ utcDate: Date, in timeZone: TimeZone) -> Date {
+        // Get the date components in the birth place timezone
+        let calendar = Calendar(identifier: .gregorian)
+        let components = calendar.dateComponents(in: timeZone, from: utcDate)
+
+        // Create a new date using these components but in the current device timezone
+        // This makes the DatePicker show the correct time values
+        var localComponents = DateComponents()
+        localComponents.year = components.year
+        localComponents.month = components.month
+        localComponents.day = components.day
+        localComponents.hour = components.hour
+        localComponents.minute = components.minute
+        localComponents.second = components.second
+        localComponents.timeZone = Calendar.current.timeZone // Use device timezone
+
+        return calendar.date(from: localComponents) ?? utcDate
+    }
+
+    private func dateForDisplay(_ utcDate: Date, in timeZone: TimeZone) -> Date {
+        let calendar = Calendar(identifier: .gregorian)
+        let utcComponents = calendar.dateComponents(in: timeZone, from: utcDate)
+
+        var displayComponents = DateComponents()
+        displayComponents.year = utcComponents.year
+        displayComponents.month = utcComponents.month
+        displayComponents.day = utcComponents.day
+        displayComponents.hour = utcComponents.hour
+        displayComponents.minute = utcComponents.minute
+        displayComponents.second = utcComponents.second
+        displayComponents.timeZone = timeZone
+
+        return calendar.date(from: displayComponents) ?? utcDate
+    }
+
+    // MARK: - Time Zone Resolution
+
     func resolveTimeZone(for location: CLLocation, birthDate: Date, placeName: String, completion: @escaping (Result<TimeZone, TimeZoneResolutionError>) -> Void) {
         let thresholdDate = Calendar.current.date(from: DateComponents(year: 1883, month: 11, day: 18))!
 
@@ -129,7 +199,7 @@ struct BirthDataEntryView: View {
             }
         }
     }
-    
+
     func adjustForTimeZoneException(date: Date, location: String, latitude: Double, longitude: Double, geocodedTimeZoneIdentifier: String) -> String {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
@@ -160,6 +230,7 @@ struct BirthDataEntryView: View {
         print("No time zone exception applicable. Using geocoded time zone: \(geocodedTimeZoneIdentifier)")
         return geocodedTimeZoneIdentifier // Use geocoded time zone if no exception found
     }
+
     func loadTimeZoneExceptions() -> [TimeZoneException] {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
@@ -174,7 +245,9 @@ struct BirthDataEntryView: View {
         }
         return exceptions
     }
-    
+
+    // MARK: - Save Data
+
     private func saveData() {
         guard !name.isEmpty, !birthPlace.isEmpty else {
             errorMessage = "Please fill in all fields"
@@ -190,21 +263,20 @@ struct BirthDataEntryView: View {
                 DispatchQueue.main.async {
                     switch result {
                     case .success(let timeZone):
-                        let adjustedDate = self.applyTimeZone(self.birthDate, with: timeZone)
+                        // When editing, we need to interpret the DatePicker date correctly
+                        let adjustedDate = self.interpretDatePickerTime(self.birthDate, for: timeZone)
                         self.resolvedTimeZone = timeZone
-                  
 
                         print("🟢 BIRTH DATA DEBUG:")
                         print("Name: \(self.name)")
                         print("Birthplace: \(self.birthPlace)")
                         print("Latitude: \(self.latitude), Longitude: \(self.longitude)")
-                        print("Input BirthDate (local): \(self.birthDate)")
+                        print("Input BirthDate (from picker): \(self.birthDate)")
                         print("TimeZone Used: \(timeZone.identifier)")
                         print("Offset: \(timeZone.secondsFromGMT(for: self.birthDate)) seconds")
                         print("Adjusted Date (UTC): \(adjustedDate)")
                         print("✅ Final UTC Date:", adjustedDate)
                         self.addPerson(using: adjustedDate, timeZoneID: timeZone.identifier)
-
 
                     case .failure(let error):
                         self.errorMessage = error.localizedDescription
@@ -212,7 +284,6 @@ struct BirthDataEntryView: View {
                         self.isLoading = false
                     }
                 }
-            
             }
             return
         }
@@ -220,12 +291,32 @@ struct BirthDataEntryView: View {
         geocodeLocation()
     }
 
+    /// Correctly interprets the date from DatePicker based on whether we're editing or creating new
+    private func interpretDatePickerTime(_ pickerDate: Date, for timeZone: TimeZone) -> Date {
+        // The DatePicker gives us a date in the device's timezone
+        // We need to interpret this as if it was entered in the birth place timezone
+
+        let calendar = Calendar(identifier: .gregorian)
+        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: pickerDate)
+
+        var adjustedComponents = DateComponents()
+        adjustedComponents.year = components.year
+        adjustedComponents.month = components.month
+        adjustedComponents.day = components.day
+        adjustedComponents.hour = components.hour
+        adjustedComponents.minute = components.minute
+        adjustedComponents.second = components.second
+        adjustedComponents.timeZone = timeZone
+
+        return calendar.date(from: adjustedComponents) ?? pickerDate
+    }
+
     private func applyTimeZone(_ date: Date, with timeZone: TimeZone) -> Date {
-        // The date was entered assuming it's in the timeZone — but Swift thinks it's in the device’s local time zone.
+        // The date was entered assuming it's in the timeZone — but Swift thinks it's in the device's local time zone.
         // So we reinterpret it as if it was *entered in timeZone*, not currentTimeZone.
-        
+
         let local = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
-        
+
         var components = DateComponents()
         components.year = local.year
         components.month = local.month
@@ -265,11 +356,10 @@ struct BirthDataEntryView: View {
                     DispatchQueue.main.async {
                         switch result {
                         case .success(let timeZone):
-                            let adjustedDate = self.applyTimeZone(self.birthDate, with: timeZone)
+                            let adjustedDate = self.interpretDatePickerTime(self.birthDate, for: timeZone)
                             self.resolvedTimeZone = timeZone
-                    
-                            self.addPerson(using: adjustedDate, timeZoneID: timeZone.identifier)
 
+                            self.addPerson(using: adjustedDate, timeZoneID: timeZone.identifier)
 
                             print("✅ Final UTC Date:", adjustedDate)
                         case .failure(let error):
@@ -282,18 +372,36 @@ struct BirthDataEntryView: View {
             }
         }
     }
+
     private func addPerson(using adjustedDate: Date, timeZoneID: String) {
-        let newPerson = Person(
+        let userID = Auth.auth().currentUser?.uid ?? "unknown_user"
+
+        let existingDocID = personStore.editingPerson?.documentID
+        let personID = personStore.editingPerson?.id ?? UUID()
+
+        var updatedPerson = Person(
             name: name,
             birthDate: adjustedDate,
             birthPlace: birthPlace,
             latitude: latitude,
             longitude: longitude,
-            timeZoneID: timeZoneID
+            timeZoneID: timeZoneID,
+            documentID: existingDocID
         )
 
-        // Reinterpret the adjusted UTC date into local time using timeZoneID
-        let timeZone = TimeZone(identifier: timeZoneID) ?? TimeZone(abbreviation: "UTC")!
+        // Preserve the original ID so Firestore document paths match
+        updatedPerson = Person(
+            name: name,
+            birthDate: adjustedDate,
+            birthPlace: birthPlace,
+            latitude: latitude,
+            longitude: longitude,
+            timeZoneID: timeZoneID,
+            documentID: existingDocID
+        )
+        updatedPerson = updatedPerson.withID(personID) // Use a helper to override `let id`
+
+        let timeZone = TimeZone(identifier: timeZoneID) ?? .current
         let localComponents = Calendar(identifier: .gregorian).dateComponents(in: timeZone, from: adjustedDate)
         var adjustedComponents = DateComponents()
         adjustedComponents.calendar = Calendar(identifier: .gregorian)
@@ -318,25 +426,29 @@ struct BirthDataEntryView: View {
             latitude: latitude,
             longitude: longitude,
             name: name,
-            sexString: "Male", // <- adjust if needed
-            categoryString: "Friend", // <- adjust if needed
+            sexString: "Male", // <- adjust as needed
+            categoryString: "Friend", // <- adjust as needed
             roddenRating: "AA",
             birthPlace: birthPlace
         )
 
-        personStore.calculateAstrologicalData(for: newPerson, using: chartCake) { updatedPerson in
+        personStore.calculateAstrologicalData(for: updatedPerson, using: chartCake) { fullPerson in
             DispatchQueue.main.async {
-                let userID = Auth.auth().currentUser?.uid ?? "unknown_user"
-                self.personStore.saveToFirestore(person: updatedPerson, userID: userID)
-                self.personStore.people.append(updatedPerson)
+                self.personStore.saveToFirestore(person: fullPerson, userID: userID)
+
+                if let index = self.personStore.people.firstIndex(where: { $0.id == fullPerson.id }) {
+                    self.personStore.people[index] = fullPerson
+                } else {
+                    self.personStore.people.append(fullPerson)
+                }
+
+                self.personStore.editingPerson = nil
                 self.isLoading = false
                 self.presentationMode.wrappedValue.dismiss()
             }
         }
     }
-
 }
-
 
 struct BirthDataEntryView_Previews: PreviewProvider {
     static var previews: some View {
@@ -344,11 +456,14 @@ struct BirthDataEntryView_Previews: PreviewProvider {
             .environmentObject(PersonStore())
     }
 }
+
+
 import Foundation
 import SwiftUI
 
 struct Person: Identifiable {
-    let id = UUID()
+    var id: UUID = UUID()
+
     var documentID: String? // 🔥 Add this line
 
     let name: String
@@ -615,5 +730,35 @@ enum TimeZoneResolutionError: Error, LocalizedError {
         switch self {
         case .custom(let message): return message
         }
+    }
+}
+extension Person {
+    func withID(_ id: UUID) -> Person {
+        var copy = self
+        let mirror = Mirror(reflecting: copy)
+        if let idField = mirror.children.first(where: { $0.label == "id" })?.value as? UUID {
+            print("Original ID: \(idField)")
+        }
+
+        // Create new instance by copying fields and overriding ID
+        return Person(
+            name: self.name,
+            birthDate: self.birthDate,
+            birthPlace: self.birthPlace,
+            latitude: self.latitude,
+            longitude: self.longitude,
+            timeZoneID: self.timeZoneID,
+            documentID: self.documentID
+        ).setting(\.id, to: id)
+    }
+}
+
+// Swift doesn't let you change a `let` normally, but this hack works in dev context:
+extension Person {
+    func setting<Value>(_ keyPath: WritableKeyPath<Person, Value>, to value: Value) -> Person {
+        var mutable = self
+        let ptr = UnsafeMutablePointer(&mutable)
+        ptr.pointee[keyPath: keyPath] = value
+        return ptr.pointee
     }
 }
