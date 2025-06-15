@@ -217,11 +217,15 @@ struct AstroAttributeRow: View {
     }
 }
 
-// Zoomable UIKit wrapper for Birth Chart
+// Fixed Zoomable Chart - Completely locked until zoom
 struct ZoomableBirthChartView: UIViewRepresentable {
     let person: Person
-    
-    func makeUIView(context: Context) -> UIScrollView {
+
+    func makeUIView(context: Context) -> UIView {
+        // Create container view
+        let containerView = UIView()
+        containerView.backgroundColor = .clear
+
         // Create scroll view with zooming
         let scrollView = UIScrollView()
         scrollView.delegate = context.coordinator
@@ -231,42 +235,62 @@ struct ZoomableBirthChartView: UIViewRepresentable {
         scrollView.maximumZoomScale = 3.0
         scrollView.bouncesZoom = true
         scrollView.backgroundColor = .clear
-        
+
+        // 🔒 Completely disable all scrolling and bouncing
+        scrollView.isScrollEnabled = false
+        scrollView.bounces = false
+        scrollView.alwaysBounceVertical = false
+        scrollView.alwaysBounceHorizontal = false
+
         // Create birth chart view
         let chartView = createBirthChartView()
-        chartView.tag = 100 // Tag for identification
-        
-        // Add double-tap gesture for zoom reset
+        chartView.tag = 100
+
+        // Add gestures to the chart view instead of scroll view
         let doubleTapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleDoubleTap(_:)))
         doubleTapGesture.numberOfTapsRequired = 2
         chartView.addGestureRecognizer(doubleTapGesture)
+
+        let pinchGesture = UIPinchGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePinch(_:)))
+        chartView.addGestureRecognizer(pinchGesture)
+
         chartView.isUserInteractionEnabled = true
-        
+
         scrollView.addSubview(chartView)
-        
-        // Set up constraints for the chart view
+        containerView.addSubview(scrollView)
+
+        // Store reference to scroll view for coordinator
+        scrollView.tag = 200
+
+        // Set up constraints
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
         chartView.translatesAutoresizingMaskIntoConstraints = false
+
         NSLayoutConstraint.activate([
+            // Scroll view fills container
+            scrollView.topAnchor.constraint(equalTo: containerView.topAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
+
+            // Chart view centered and sized
             chartView.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
             chartView.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor),
             chartView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
-            chartView.heightAnchor.constraint(equalTo: scrollView.widthAnchor) // Square aspect ratio
+            chartView.heightAnchor.constraint(equalTo: scrollView.heightAnchor)
         ])
-        
-        return scrollView
+
+        return containerView
     }
-    
-    func updateUIView(_ scrollView: UIScrollView, context: Context) {
-        // Update content size if needed
-        if let chartView = scrollView.viewWithTag(100) {
-            scrollView.contentSize = chartView.bounds.size
-        }
+
+    func updateUIView(_ containerView: UIView, context: Context) {
+        // No updates needed
     }
-    
+
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }
-    
+
     private func createBirthChartView() -> UIView {
         let chart = Chart(
             date: person.birthDate,
@@ -276,48 +300,116 @@ struct ZoomableBirthChartView: UIViewRepresentable {
             name: person.name,
             birthPlace: person.birthPlace
         )
-        
+
         let frame = CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.width)
         let birthChartView = ChartView(frame: frame, chart: chart)
         birthChartView.backgroundColor = .white
         birthChartView.layer.cornerRadius = 16
         birthChartView.clipsToBounds = true
-        
+
         return birthChartView
     }
-    
-    // Coordinator for UIScrollView delegate
+
     class Coordinator: NSObject, UIScrollViewDelegate {
         let parent: ZoomableBirthChartView
-        
+        private var isZooming = false
+
         init(_ parent: ZoomableBirthChartView) {
             self.parent = parent
         }
-        
+
         // Allow zooming
         func viewForZooming(in scrollView: UIScrollView) -> UIView? {
             return scrollView.viewWithTag(100)
         }
-        
-        // Reset zoom on double tap
-        @objc func handleDoubleTap(_ gesture: UITapGestureRecognizer) {
-            if let scrollView = gesture.view?.superview as? UIScrollView {
-                if scrollView.zoomScale > scrollView.minimumZoomScale {
-                    // Reset zoom
-                    UIView.animate(withDuration: 0.3) {
-                        scrollView.zoomScale = scrollView.minimumZoomScale
-                    }
-                } else {
-                    // Zoom in to where tapped
-                    let location = gesture.location(in: gesture.view)
-                    let zoomRect = CGRect(
-                        x: location.x - 50,
-                        y: location.y - 50,
-                        width: 100,
-                        height: 100
-                    )
-                    scrollView.zoom(to: zoomRect, animated: true)
+
+        // Control scrolling based on zoom state
+        func scrollViewDidZoom(_ scrollView: UIScrollView) {
+            // Only enable scrolling when actually zoomed in
+            let isZoomedIn = scrollView.zoomScale > 1.01 // Small buffer for floating point precision
+            scrollView.isScrollEnabled = isZoomedIn
+            scrollView.bounces = isZoomedIn
+
+            // Center content when at minimum zoom
+            if !isZoomedIn {
+                centerContent(in: scrollView)
+            }
+        }
+
+        // Prevent any movement when zoom ends at 1.0
+        func scrollViewDidEndZooming(_ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat) {
+            if scale <= 1.01 {
+                scrollView.isScrollEnabled = false
+                scrollView.bounces = false
+                centerContent(in: scrollView)
+            }
+        }
+
+        private func centerContent(in scrollView: UIScrollView) {
+            guard let chartView = scrollView.viewWithTag(100) else { return }
+
+            // Force content to center
+            let boundsSize = scrollView.bounds.size
+            let frameToCenter = chartView.frame
+
+            let offsetX = max(0, (boundsSize.width - frameToCenter.width) / 2)
+            let offsetY = max(0, (boundsSize.height - frameToCenter.height) / 2)
+
+            scrollView.contentOffset = CGPoint(x: -offsetX, y: -offsetY)
+        }
+
+        @objc func handlePinch(_ gesture: UIPinchGestureRecognizer) {
+            guard let chartView = gesture.view,
+                  let scrollView = chartView.superview as? UIScrollView else { return }
+
+            switch gesture.state {
+            case .began:
+                isZooming = true
+                scrollView.isScrollEnabled = true
+                scrollView.bounces = true
+
+            case .changed:
+                // Handle zoom manually during gesture
+                let scale = gesture.scale
+                let newScale = scrollView.zoomScale * scale
+                let clampedScale = min(max(newScale, scrollView.minimumZoomScale), scrollView.maximumZoomScale)
+
+                scrollView.zoomScale = clampedScale
+                gesture.scale = 1.0
+
+            case .ended, .cancelled:
+                isZooming = false
+                // Final check - disable if back to 1.0
+                if scrollView.zoomScale <= 1.01 {
+                    scrollView.isScrollEnabled = false
+                    scrollView.bounces = false
+                    centerContent(in: scrollView)
                 }
+
+            default:
+                break
+            }
+        }
+
+        @objc func handleDoubleTap(_ gesture: UITapGestureRecognizer) {
+            guard let chartView = gesture.view,
+                  let scrollView = chartView.superview as? UIScrollView else { return }
+
+            if scrollView.zoomScale > 1.01 {
+                // Zoom out to reset
+                UIView.animate(withDuration: 0.3) {
+                    scrollView.zoomScale = 1.0
+                }
+            } else {
+                // Zoom in to tapped location
+                let location = gesture.location(in: chartView)
+                let zoomRect = CGRect(
+                    x: location.x - 50,
+                    y: location.y - 50,
+                    width: 100,
+                    height: 100
+                )
+                scrollView.zoom(to: zoomRect, animated: true)
             }
         }
     }

@@ -23,7 +23,7 @@ struct BirthDataEntryView: View {
 
     private let dateRange: ClosedRange<Date> = {
         let calendar = Calendar.current
-        let startComponents = DateComponents(year: 1900, month: 1, day: 1)
+        let startComponents = DateComponents(year: 1000, month: 1, day: 1)
         let endComponents = DateComponents(year: 2025, month: 12, day: 31)
         return calendar.date(from: startComponents)!...calendar.date(from: endComponents)!
     }()

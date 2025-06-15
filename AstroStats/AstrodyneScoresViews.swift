@@ -133,8 +133,8 @@ struct PlanetScoresView: View {
         case "pluto": return .indigo
         case "n.node", "northnode", "mean node": return Color(red: 0.8, green: 0.4, blue: 0.0)
         case "s.node", "southnode", "mean south node": return Color(red: 0.7, green: 0.7, blue: 0.7)
-        case "ac", "asc": return .white
-        case "mc": return .white
+        case "ac", "asc": return .gray
+        case "mc": return .gray
         default: return .gray
         }
     }

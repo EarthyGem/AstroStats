@@ -7,7 +7,7 @@ import SwiftEphemeris
 struct AspectDetailsView: View {
     let person: Person
     let aspectKind: Kind
-
+  
     var body: some View {
         let chart = ChartCake(
             birthDate: person.birthDate,

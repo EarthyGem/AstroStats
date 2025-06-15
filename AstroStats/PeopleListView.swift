@@ -225,7 +225,7 @@ struct PersonRowView: View {
 
     var body: some View {
         HStack(spacing: 15) {
-            PlanetIcon(planet: person.strongestPlanet ?? "Sun")
+            PlanetIcon(planet: person.strongestPlanet ?? "Sun", sign: person.strongestPlanetSign ?? "Gemini")
                 .frame(width: 40, height: 40)
 
             VStack(alignment: .leading, spacing: 4) {
@@ -252,11 +252,12 @@ struct PersonRowView: View {
 
 struct PlanetIcon: View {
     let planet: String
+    let sign: String // NEW: sign of the planet, e.g., "Aries"
 
     var body: some View {
         ZStack {
             Circle()
-                .fill(planetColor)
+                .fill(signColor) // Use sign color instead of planet color
                 .frame(width: 40, height: 40)
 
             GlyphProvider.planetImage(for: planet)
@@ -267,40 +268,29 @@ struct PlanetIcon: View {
         }
     }
 
-    private var planetColor: Color {
-        switch planet.lowercased() {
-        case "sun": return .orange
-        case "moon": return .green
-        case "mercury": return .purple
-        case "venus": return .yellow
-        case "mars": return .red
-        case "jupiter": return .indigo
-        case "saturn": return .blue
-        case "uranus": return .white
-        case "neptune": return .teal
-        case "pluto": return .green
-        default: return .gray
+    private var signColor: Color {
+        switch sign {
+        case "Aries":        return Color.red.opacity(0.5)        // Mars, masculine → light red
+        case "Taurus":       return Color.yellow.opacity(0.9)     // Venus, feminine → dark yellow
+        case "Gemini":       return Color.violet.opacity(0.5)     // Mercury, masculine → light violet
+        case "Cancer":       return Color.green.opacity(0.9)      // Moon, feminine → dark green
+        case "Leo":          return Color.orange.opacity(0.5)     // Sun, masculine → light orange
+        case "Virgo":        return Color.violet.opacity(0.9)     // Mercury, feminine → dark violet
+        case "Libra":        return Color.yellow.opacity(0.5)     // Venus, masculine → light yellow
+        case "Scorpio":      return Color.red.opacity(0.9)        // Mars, feminine → dark red
+        case "Sagittarius":  return Color.indigo.opacity(0.5)     // Jupiter, masculine → light indigo
+        case "Capricorn":    return Color.blue.opacity(0.9)       // Saturn, feminine → dark blue
+        case "Aquarius":     return Color.blue.opacity(0.5)       // Saturn, masculine → light blue
+        case "Pisces":       return Color.indigo.opacity(0.9)     // Jupiter, feminine → dark indigo
+        default:             return Color.gray
         }
     }
 
-
-
-
-    private var planetSymbol: String {
-        switch planet.lowercased() {
-        case "sun": return "sun.max.fill"
-        case "moon": return "moon.fill"
-        case "mercury": return "mercury"
-        case "venus": return "face.smiling.fill" // Approximation for Venus
-        case "mars": return "arrow.up.forward.circle.fill" // Approximation for Mars
-        case "jupiter": return "sparkles"
-        case "saturn": return "saturn.fill"
-        case "uranus": return "circle.grid.cross.fill"
-        case "neptune": return "water.waves"
-        case "pluto": return "p.circle.fill" // Approximation for Pluto
-        default: return "star.fill"
-        }
-    }
 }
 
 
+
+
+extension Color {
+    static let violet = Color(red: 0.56, green: 0.0, blue: 1.0) // Approximate violet
+}
