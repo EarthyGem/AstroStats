@@ -518,8 +518,8 @@ struct HouseInformationView: View {
                         Text("\(house).")
                             .font(.subheadline)
                             .fontWeight(.bold)
-                            .frame(width: 25, alignment: .leading)
-                        
+                            .frame(minWidth: 25, alignment: .leading) // Allows expansion if needed
+
                         Text(keywords)
                             .font(.subheadline)
                     }
